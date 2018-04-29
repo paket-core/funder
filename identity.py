@@ -53,28 +53,28 @@ flasgger.Swagger(webserver.APP)
 
 @BLUEPRINT.route("/v{}/submit_transaction".format(VERSION), methods=['POST'])
 @flasgger.swag_from("{}/submit_transaction.yml".format(SWAGGER_DIR))
-@webserver.validation.call(['transaction'])
+@webserver.call(['transaction'])
 def submit_transaction_handler(user_pubkey, transaction):
     return {'status': 200, 'transaction': paket.submit_transaction_envelope(user_pubkey, transaction)}
 
 
 @BLUEPRINT.route("/v{}/bul_account".format(VERSION), methods=['GET'])
 @flasgger.swag_from("{}/bul_account.yml".format(SWAGGER_DIR))
-@webserver.validation.call(['queried_pubkey'])
+@webserver.call(['queried_pubkey'])
 def bul_account_handler(queried_pubkey):
     return dict(status=200, **paket.get_bul_account(queried_pubkey))
 
 
 @BLUEPRINT.route("/v{}/send_buls".format(VERSION), methods=['POST'])
 @flasgger.swag_from("{}/send_buls.yml".format(SWAGGER_DIR))
-@webserver.validation.call(['to_pubkey', 'amount_buls'], require_auth=True)
+@webserver.call(['to_pubkey', 'amount_buls'], require_auth=True)
 def send_buls_handler(user_pubkey, to_pubkey, amount_buls):
     return {'status': 201, 'transaction': paket.send_buls(user_pubkey, to_pubkey, amount_buls)}
 
 
 @BLUEPRINT.route("/v{}/prepare_send_buls".format(VERSION), methods=['GET'])
 @flasgger.swag_from("{}/prepare_send_buls.yml".format(SWAGGER_DIR))
-@webserver.validation.call(['from_pubkey', 'to_pubkey', 'amount_buls'])
+@webserver.call(['from_pubkey', 'to_pubkey', 'amount_buls'])
 def prepare_send_buls_handler(from_pubkey, to_pubkey, amount_buls):
     return {'status': 200, 'transaction': paket.prepare_send_buls(from_pubkey, to_pubkey, amount_buls)}
 
@@ -90,7 +90,7 @@ def price_handler():
 
 @BLUEPRINT.route("/v{}/launch_package".format(VERSION), methods=['POST'])
 @flasgger.swag_from("{}/launch_package.yml".format(SWAGGER_DIR))
-@webserver.validation.call(
+@webserver.call(
     ['recipient_pubkey', 'courier_pubkey', 'deadline_timestamp', 'payment_buls', 'collateral_buls'], require_auth=True)
 def launch_package_handler(
         user_pubkey, recipient_pubkey, courier_pubkey, deadline_timestamp, payment_buls, collateral_buls
@@ -105,7 +105,7 @@ def launch_package_handler(
 
 @BLUEPRINT.route("/v{}/accept_package".format(VERSION), methods=['POST'])
 @flasgger.swag_from("{}/accept_package.yml".format(SWAGGER_DIR))
-@webserver.validation.call(['paket_id'], require_auth=True)
+@webserver.call(['paket_id'], require_auth=True)
 def accept_package_handler(user_pubkey, paket_id, payment_transaction=None):
     paket.accept_package(user_pubkey, paket_id, payment_transaction)
     return {'status': 200}
@@ -113,14 +113,14 @@ def accept_package_handler(user_pubkey, paket_id, payment_transaction=None):
 
 @BLUEPRINT.route("/v{}/relay_package".format(VERSION), methods=['POST'])
 @flasgger.swag_from("{}/relay_package.yml".format(SWAGGER_DIR))
-@webserver.validation.call(['paket_id', 'courier_pubkey', 'payment_buls'], require_auth=True)
+@webserver.call(['paket_id', 'courier_pubkey', 'payment_buls'], require_auth=True)
 def relay_package_handler(user_pubkey, paket_id, courier_pubkey, payment_buls):
     return {'status': 200, 'transaction': paket.relay_payment(user_pubkey, paket_id, courier_pubkey, payment_buls)}
 
 
 @BLUEPRINT.route("/v{}/refund_package".format(VERSION), methods=['POST'])
 @flasgger.swag_from("{}/refund_package.yml".format(SWAGGER_DIR))
-@webserver.validation.call(['paket_id', 'refund_transaction'], require_auth=True)
+@webserver.call(['paket_id', 'refund_transaction'], require_auth=True)
 # pylint: disable=unused-argument
 # user_pubkey is used in decorator.
 def refund_package_handler(user_pubkey, paket_id, refund_transaction):
@@ -132,7 +132,7 @@ def refund_package_handler(user_pubkey, paket_id, refund_transaction):
 # This function does not yet implement the filters.
 @BLUEPRINT.route("/v{}/my_packages".format(VERSION), methods=['GET'])
 @flasgger.swag_from("{}/my_packages.yml".format(SWAGGER_DIR))
-@webserver.validation.call(require_auth=True)
+@webserver.call(require_auth=True)
 def my_packages_handler(user_pubkey, show_inactive=False, from_date=None, role_in_delivery=None):
     return {'status': 200, 'packages': db.get_packages()}
 # pylint: enable=unused-argument
@@ -140,7 +140,7 @@ def my_packages_handler(user_pubkey, show_inactive=False, from_date=None, role_i
 
 @BLUEPRINT.route("/v{}/package".format(VERSION), methods=['GET'])
 @flasgger.swag_from("{}/package.yml".format(SWAGGER_DIR))
-@webserver.validation.call(['paket_id'])
+@webserver.call(['paket_id'])
 def package_handler(paket_id):
     return {'status': 200, 'package': db.get_package(paket_id)}
 
@@ -150,7 +150,7 @@ def package_handler(paket_id):
 
 @BLUEPRINT.route("/v{}/register_user".format(VERSION), methods=['POST'])
 @flasgger.swag_from("{}/register_user.yml".format(SWAGGER_DIR))
-@webserver.validation.call(['full_name', 'phone_number', 'paket_user'], require_auth=True)
+@webserver.call(['full_name', 'phone_number', 'paket_user'], require_auth=True)
 # Note that pubkey is different from user_pubkey in that it does not yet exist in the system.
 def register_user_handler(pubkey, full_name, phone_number, paket_user):
     try:
@@ -159,7 +159,7 @@ def register_user_handler(pubkey, full_name, phone_number, paket_user):
 
     # For debug purposes, we generate a pubkey if no valid key is found.
     except paket.stellar_base.utils.DecodeError:
-        if not webserver.validation.DEBUG:
+        if not webserver.DEBUG:
             raise
         keypair = paket.get_keypair()
         pubkey, seed = keypair.address().decode(), keypair.seed().decode()
@@ -172,7 +172,7 @@ def register_user_handler(pubkey, full_name, phone_number, paket_user):
 
 @BLUEPRINT.route("/v{}/recover_user".format(VERSION), methods=['POST'])
 @flasgger.swag_from("{}/recover_user.yml".format(SWAGGER_DIR))
-@webserver.validation.call(require_auth=True)
+@webserver.call(require_auth=True)
 def recover_user_handler(user_pubkey):
     return {'status': 200, 'user_details': db.get_user(user_pubkey)}
 
@@ -182,7 +182,7 @@ def recover_user_handler(user_pubkey):
 
 @BLUEPRINT.route("/v{}/debug/users".format(VERSION), methods=['GET'])
 @flasgger.swag_from("{}/users.yml".format(SWAGGER_DIR))
-@webserver.validation.call
+@webserver.call
 def users_handler():
     return {'status': 200, 'users': {
         pubkey: dict(user, bul_account=paket.get_bul_account(pubkey)) for pubkey, user in db.get_users().items()}}
@@ -190,7 +190,7 @@ def users_handler():
 
 @BLUEPRINT.route("/v{}/debug/packages".format(VERSION), methods=['GET'])
 @flasgger.swag_from("{}/packages.yml".format(SWAGGER_DIR))
-@webserver.validation.call
+@webserver.call
 def packages_handler():
     return {'status': 200, 'packages': db.get_packages()}
 
