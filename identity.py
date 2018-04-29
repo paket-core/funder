@@ -20,6 +20,7 @@ webserver.APP.register_blueprint(BLUEPRINT)
 # pylint: disable=missing-docstring
 # See documentation in swagger_spec.
 
+
 @BLUEPRINT.route("/v{}/test".format(VERSION), methods=['GET'])
 @flasgger.swag_from(swagger_spec.TEST)
 @webserver.call
