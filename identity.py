@@ -5,6 +5,7 @@ import flask
 
 import logger
 import webserver
+import webserver.validation
 
 import swagger_spec
 
@@ -19,8 +20,8 @@ BLUEPRINT = flask.Blueprint('identity', __name__)
 
 
 @BLUEPRINT.route("/v{}/test".format(VERSION), methods=['GET'])
-#@flasgger.swag_from(swagger_spec.TEST)
-#@webserver.call
+@flasgger.swag_from(swagger_spec.TEST)
+@webserver.validation.call
 def test_handler():
     return {'status': 200, 'message': 'This is indeed a test.'}
 
