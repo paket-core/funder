@@ -27,4 +27,4 @@ def test_handler():
 
 
 if __name__ == '__main__':
-    webserver.run(BLUEPRINT, swagger_spec.CONFIG, True)
+    webserver.run(BLUEPRINT, swagger_spec.CONFIG)
