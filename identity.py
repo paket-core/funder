@@ -4,7 +4,6 @@ import flasgger
 import flask
 
 import logger
-import webserver
 import webserver.validation
 
 import db
