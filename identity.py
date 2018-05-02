@@ -23,7 +23,12 @@ db.init_db()
 @flasgger.swag_from(swagger_specs.USER_POST)
 @webserver.validation.call(['full_name', 'phone_number', 'address', 'paket_user'], require_auth=True)
 def user_post_handler(user_pubkey, full_name, phone_number, address, paket_user):
-    """Add user details."""
+    """
+    Add user details
+    Register a user in the identity server.
+    This function will return 400 if the pubkey doesn't belong to a valid stellar account that trusts receiving BULs.
+    ---
+    """
     db.create_user(user_pubkey, full_name, phone_number, address, paket_user)
     return {'status': 201, 'user': db.get_user(user_pubkey)}
 
@@ -32,7 +37,12 @@ def user_post_handler(user_pubkey, full_name, phone_number, address, paket_user)
 @flasgger.swag_from(swagger_specs.USER_GET)
 @webserver.validation.call(require_auth=True)
 def user_get_handler(user_pubkey, queried_pubkey=None):
-    """Get user details."""
+    """
+    Get user details
+    Returns available user info.
+    Only Authorized user can receive this information. Use the Authorize function to permit a specific user.
+    ---
+    """
     if queried_pubkey is None:
         queried_pubkey = user_pubkey
     elif queried_pubkey != user_pubkey:
@@ -45,7 +55,15 @@ def user_get_handler(user_pubkey, queried_pubkey=None):
 @flasgger.swag_from(swagger_specs.AUTHORIZE)
 @webserver.validation.call(['authorized_pubkey'], require_auth=True)
 def authorize_handler(user_pubkey, authorized_pubkey):
-    """Authorize a pubkey to view user_pubkey's details."""
+    # TODO consider adding a duration in days. I think a day resolution makes sense. We can have a cleanup mechanism,
+    # or validate date when accessing the data.
+    """
+    Authorize a user to view user_pubkey's details
+    A user can permit a another user to receive information about him.
+    The authorization is done for a pubkey and no check is made on the validity or availability of the pubkey.
+    Typically a user will Authorize himself, the main PaKeT user, and any other user he wishes.
+    ---
+    """
     db.add_authorization(authorized_pubkey, user_pubkey)
     return {'status': 201}
 
@@ -54,7 +72,11 @@ def authorize_handler(user_pubkey, authorized_pubkey):
 @flasgger.swag_from(swagger_specs.UNAUTHORIZE)
 @webserver.validation.call(['authorized_pubkey'], require_auth=True)
 def unauthorize_handler(user_pubkey, authorized_pubkey):
-    """Unauthorize a pubkey to view user_pubkey's details."""
+    """
+    Unauthorize a user to view user_pubkey's details
+
+    ---
+    """
     db.remove_authorization(authorized_pubkey, user_pubkey)
     return {'status': 201}
 

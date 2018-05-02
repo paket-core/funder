@@ -21,10 +21,39 @@ CONFIG = {
             'url': 'http://www.gnu.org/licenses/'
         },
         'description': '''
-What does this do?
+
+The Identity server is responsible for registering users. 
+A user registration is simply a connection between a single BUL account and the details of it's holder.
+The Identity Server also performs KYC/AML checks on registered users.
+
+BULs Account
+--
+A BULs account is a Stellar account that trusts PaKeT's BUL token.
+
+User Details
+--  
+Details of the person holding the account, including: 
+ - full_name 
+ - phone_number 
+ - address
+ - paket_user
+  
+These details are added at registration time.
+Details on the KYC status of the user:
+- KYC status - based on the servers tests
+- Funding limit - the maximal amount that the user is allowed to purchase. This is dependant on the user's KYC status.
+
+Authorization
+--
+The data is available only to the user who registered, and anyone he authorize access to. 
+A normal process is for a user to authorize himself, the PaKeT server [and the funding server??].  
+
 
 The API
 =======
+
+
+
         '''
     }
 }
@@ -44,7 +73,7 @@ USER_POST = {
             'name': 'Fingerprint',
             'in': 'header',
             'default':
-                'NOT NEEDED YET http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
+                'http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
             'schema': {
                 'type': 'string',
                 'format': 'string'
@@ -53,7 +82,7 @@ USER_POST = {
         {
             'name': 'Signature',
             'in': 'header',
-            'default': 'NOT NEEDED YET 0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
+            'default': '0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
             'schema': {
                 'type': 'string',
                 'format': 'string'
@@ -86,9 +115,10 @@ USER_POST = {
     ],
     'responses': {
         '201': {
-            'description': 'User created',
-            'examples': {
-            }
+            'description': 'User created'
+        },
+        '400': {
+            'description': 'Bad Request: pubkey is not related to a valid account'
         }
     }
 }
@@ -108,7 +138,7 @@ USER_GET = {
             'name': 'Fingerprint',
             'in': 'header',
             'default':
-                'NOT NEEDED YET http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
+                'http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
             'schema': {
                 'type': 'string',
                 'format': 'string'
@@ -117,7 +147,7 @@ USER_GET = {
         {
             'name': 'Signature',
             'in': 'header',
-            'default': 'NOT NEEDED YET 0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
+            'default': '0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
             'schema': {
                 'type': 'string',
                 'format': 'string'
@@ -133,9 +163,14 @@ USER_GET = {
     'responses': {
         '200': {
             'description': 'User retrieved',
-            'examples': {
-            }
+        },
+        '403': {
+            'description': 'Forbidden. Requesting user is not authorized with information about requested user.',
+        },
+        '404': {
+            'description': 'Not Found. Requested user is not registered.',
         }
+
     }
 }
 
@@ -154,7 +189,7 @@ AUTHORIZE = {
             'name': 'Fingerprint',
             'in': 'header',
             'default':
-                'NOT NEEDED YET http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
+                'http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
             'schema': {
                 'type': 'string',
                 'format': 'string'
@@ -163,7 +198,7 @@ AUTHORIZE = {
         {
             'name': 'Signature',
             'in': 'header',
-            'default': 'NOT NEEDED YET 0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
+            'default': '0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
             'schema': {
                 'type': 'string',
                 'format': 'string'
@@ -200,7 +235,7 @@ UNAUTHORIZE = {
             'name': 'Fingerprint',
             'in': 'header',
             'default':
-                'NOT NEEDED YET http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
+                'http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
             'schema': {
                 'type': 'string',
                 'format': 'string'
@@ -209,7 +244,7 @@ UNAUTHORIZE = {
         {
             'name': 'Signature',
             'in': 'header',
-            'default': 'NOT NEEDED YET 0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
+            'default': '0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
             'schema': {
                 'type': 'string',
                 'format': 'string'
