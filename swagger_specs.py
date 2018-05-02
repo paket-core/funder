@@ -214,8 +214,6 @@ AUTHORIZE = {
     'responses': {
         '201': {
             'description': 'Authorization added',
-            'examples': {
-            }
         }
     }
 }
@@ -260,8 +258,6 @@ UNAUTHORIZE = {
     'responses': {
         '201': {
             'description': 'Authorization revoked',
-            'examples': {
-            }
         }
     }
 }
