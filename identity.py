@@ -22,10 +22,10 @@ db.init_db()
 
 @BLUEPRINT.route("/v{}/user".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.USER_POST)
-@webserver.validation.call(['full_name', 'phone_number', 'paket_user'], require_auth=True)
-def user_post_handler(user_pubkey, full_name, phone_number, paket_user):
+@webserver.validation.call(['full_name', 'phone_number', 'address', 'paket_user'], require_auth=True)
+def user_post_handler(user_pubkey, full_name, phone_number, address, paket_user):
     """Add user details."""
-    db.create_user(user_pubkey, full_name, phone_number, paket_user)
+    db.create_user(user_pubkey, full_name, phone_number, address, paket_user)
     return {'status': 201, 'user': db.get_user(user_pubkey)}
 
 

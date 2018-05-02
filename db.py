@@ -7,14 +7,6 @@ LOGGER = logging.getLogger('pkt.identity.db')
 DB_NAME = 'identity.db'
 
 
-class UnknownUser(Exception):
-    """Unknown user ID."""
-
-
-class DuplicateUser(Exception):
-    """Duplicate user."""
-
-
 @contextlib.contextmanager
 def sql_connection(db_name=None):
     """Context manager for querying the database."""
@@ -44,6 +36,7 @@ def init_db():
                 pubkey VARCHAR(42) PRIMARY KEY,
                 full_name VARCHAR(256) NOT NULL,
                 phone_number VARCHAR(32) NOT NULL,
+                address VARCHAR(1024) NOT NULL,
                 paket_user VARCHAR(32) UNIQUE NOT NULL)''')
         LOGGER.debug('users table created')
         sql.execute('''
@@ -53,16 +46,17 @@ def init_db():
         LOGGER.debug('authorizations table created')
 
 
-def create_user(pubkey, full_name, phone_number, paket_user):
+def create_user(pubkey, full_name, phone_number, address, paket_user):
     """Create a new user."""
     with sql_connection() as sql:
         try:
-            sql.execute("INSERT INTO users (pubkey, full_name, phone_number, paket_user) VALUES (?, ?, ?, ?)", (
-                pubkey, full_name, phone_number, paket_user))
+            sql.execute("""
+                INSERT INTO users (pubkey, full_name, phone_number, address, paket_user)
+                VALUES (?, ?, ?, ?, ?)""", (pubkey, full_name, phone_number, address, paket_user))
         except sqlite3.IntegrityError as exception:
             bad_column_name = str(exception).split('.')[-1]
             bad_value = locals().get(bad_column_name)
-            raise DuplicateUser("{} {} is non unique".format(bad_column_name, bad_value))
+            raise AssertionError("{} {} is non unique".format(bad_column_name, bad_value))
 
 
 def get_user(pubkey):
@@ -70,16 +64,15 @@ def get_user(pubkey):
     with sql_connection() as sql:
         sql.execute("SELECT * FROM users WHERE users.pubkey = ?", (pubkey,))
         user = sql.fetchone()
-        if user is None:
-            raise UnknownUser("Unknown user with pubkey {}".format(pubkey))
+        assert user is not None, "Unknown user with pubkey {}".format(pubkey)
         return {key: user[key] for key in user.keys()} if user else None
 
 
-def update_user_details(pubkey, full_name, phone_number):
+def update_user_details(pubkey, full_name, phone_number, address):
     """Update user details."""
     with sql_connection() as sql:
-        sql.execute("UPDATE users SET full_name = ?, phone_number = ?  WHERE pubkey = ?", (
-            full_name, phone_number, pubkey))
+        sql.execute("UPDATE users SET full_name = ?, phone_number = ?, address = ?  WHERE pubkey = ?", (
+            full_name, phone_number, address, pubkey))
     return get_user(pubkey)
 
 

@@ -72,6 +72,12 @@ USER_POST = {
             'required': True,
         },
         {
+            'name': 'address',
+            'in': 'formData',
+            'type': 'string',
+            'required': True,
+        },
+        {
             'name': 'paket_user',
             'in': 'formData',
             'type': 'string',
