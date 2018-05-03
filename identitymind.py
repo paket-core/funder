@@ -32,7 +32,11 @@ def call(method, endpoint, host=HOST, user=USER, password=PASS, **kwargs):
     return req.json()
 
 
-KYC_REQUEST = call(requests.post, '', man='bob', bfn='bob')
-LOGGER.info(KYC_REQUEST)
+KYC_REQUEST = call(requests.post, '', man='man', bfn="Sue", bln="ed", bc="Zetroit", stage="3")
+LOGGER.debug(KYC_REQUEST)
+for f in ['tid', 'user', 'res', 'rcd', 'state']:
+    LOGGER.info("%s: %s", f, KYC_REQUEST.get(f))
 KYC_STATUS = call(requests.get, "/{}".format(KYC_REQUEST['tid']))
-LOGGER.info(KYC_STATUS)
+LOGGER.debug(KYC_STATUS)
+for f in ['tid', 'user', 'res', 'rcd', 'state']:
+    LOGGER.info("%s: %s", f, KYC_STATUS.get(f))
