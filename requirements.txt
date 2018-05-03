@@ -2,4 +2,5 @@ coloredlogs==9.3.1
 flasgger==0.8.3
 Flask==1.0
 Flask-Limiter==1.0.1
+requests==2.18.4
 stellar-base==0.1.8.1
