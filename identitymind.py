@@ -12,15 +12,11 @@ LOGGER = logger.logging.getLogger('pkt.identity')
 
 logger.setup()
 
-# fixme ? hack so test wouldn't have to include requests
-POST = requests.post
-GET = requests.get
 
-
-def call(method, endpoint, host=HOST, user=USER, password=PASS, **kwargs):
+def call(method, endpoint, host, user, password, **kwargs):
     """Call identitymind API."""
     data = json.dumps(kwargs) if kwargs else None
-    uri = "{}/im/account/consumer{}".format(host, endpoint)
+    uri = "{}{}".format(host, endpoint)
     req = method(uri, auth=(user, password), data=data)
 
     try:
@@ -36,12 +32,23 @@ def call(method, endpoint, host=HOST, user=USER, password=PASS, **kwargs):
     return req.json()
 
 
+def request_kyc(host=HOST, user=USER, password=PASS, **kwargs):
+    """Request KYC verification."""
+    return call(requests.post, '/im/account/consumer/', host, user, password, **kwargs)
+
+
+def get_kyc_status(transaction_id, host=HOST, user=USER, password=PASS):
+    """Check KYC verification status and results."""
+    return call(requests.get, "/im/account/consumer/{}".format(transaction_id), host, user, password)
+
+
 if __name__ == '__main__':
-    KYC_REQUEST = call(requests.post, '', man='man', bfn="Sue", bln="ed", bc="Zetroit", stage="3")
+    KYC_REQUEST = request_kyc(man='man', bfn="Sue", bln="ed", bc="Zetroit", stage="3")
     LOGGER.debug(KYC_REQUEST)
     for f in ['tid', 'user', 'res', 'rcd', 'state']:
         LOGGER.info("%s: %s", f, KYC_REQUEST.get(f))
-    KYC_STATUS = call(requests.get, "/{}".format(KYC_REQUEST['tid']))
+
+    KYC_STATUS = get_kyc_status(KYC_REQUEST['tid'])
     LOGGER.debug(KYC_STATUS)
     for f in ['tid', 'user', 'res', 'rcd', 'state']:
         LOGGER.info("%s: %s", f, KYC_STATUS.get(f))
