@@ -58,7 +58,7 @@ The API
     }
 }
 
-USER_POST = {
+ADD_USER = {
     'parameters': [
         {
             'name': 'Pubkey',
@@ -123,7 +123,7 @@ USER_POST = {
     }
 }
 
-USER_GET = {
+GET_USER = {
     'parameters': [
         {
             'name': 'Pubkey',
