@@ -1,5 +1,6 @@
-#!/usr/bin/env python3
 """Identity server for the PaKeT project."""
+import os
+
 import flasgger
 import flask
 
@@ -15,7 +16,7 @@ LOGGER = logger.logging.getLogger('pkt.identity')
 VERSION = swagger_specs.CONFIG['info']['version']
 BLUEPRINT = flask.Blueprint('identity', __name__)
 
-# This should be removed soon.
+# FIXME should be removed soon.
 db.init_db()
 
 
@@ -77,7 +78,3 @@ def unauthorize_handler(user_pubkey, authorized_pubkey):
     """
     db.remove_authorization(authorized_pubkey, user_pubkey)
     return {'status': 201}
-
-
-if __name__ == '__main__':
-    webserver.run(BLUEPRINT, swagger_specs.CONFIG)
