@@ -44,6 +44,14 @@ def init_db():
                 authorized_pubkey VARCHAR(42) NOT NULL,
                 viewd_pubkey VARCHAR(42) NOT NULL)''')
         LOGGER.debug('authorizations table created')
+        sql.execute('''
+            CREATE TABLE test_results(
+                idx INTEGER PRIMARY KEY,
+                test_name VARCHAR(64) NOT NULL,
+                pubkey VARCHAR(42) NOT NULL,
+                result INTEGER,
+                FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
+        LOGGER.debug('test_results table created')
 
 
 def create_user(pubkey, full_name, phone_number, address, paket_user):
@@ -104,3 +112,25 @@ def remove_authorization(authorized_pubkey, viewd_pubkey):
         sql.execute("DELETE FROM authorizations WHERE authorized_pubkey = ? AND viewd_pubkey = ?", (
             authorized_pubkey, viewd_pubkey))
     return True
+
+
+def update_test(test_name, pubkey, result=None):
+    """Update a test for a user."""
+    with sql_connection() as sql:
+        try:
+            sql.execute("INSERT INTO test_results (test_name, pubkey, result) VALUES (?, ?, ?)", (
+                test_name, pubkey, result))
+        except sqlite3.IntegrityError:
+            raise AssertionError("no user with pubkey {}".format(pubkey))
+
+
+def get_test_result(test_name, pubkey):
+    """Get the latest result of a test."""
+    get_user(pubkey)
+    with sql_connection() as sql:
+        sql.execute("SELECT result FROM test_results WHERE test_name = ? AND pubkey = ? ORDER BY idx DESC LIMIT 1", (
+            test_name, pubkey))
+        try:
+            return sql.fetchone()[0]
+        except TypeError:
+            return None
