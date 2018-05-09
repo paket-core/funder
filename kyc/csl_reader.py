@@ -33,7 +33,7 @@ class CSLListChecker:
         """
         try:
             creation_hours_ago = int(time.time() - os.path.getmtime(cls.filename)) / 3600
-            print("current file is from %d hours" % creation_hours_ago)
+            print("current file is from %d hours ago" % creation_hours_ago)
             if creation_hours_ago < 24:
                 print("no need to load new version")
                 return
@@ -85,7 +85,7 @@ class CSLListChecker:
             if fuzzy_score > .6 and fuzzy_score > top_score:
                 # print("SC: %.2f %.2f n:%s str:%s" % (partial_ratio, ratio, name, search_string))
                 top_score = fuzzy_score
-                comment = "name: {} aka:{}  program:{}  rest:{}".format(row['name'], row['alt_names'], row['programs'], row)
+                comment = "name:{} - aka:{}  program:{}".format(row['name'], row['alt_names'], row['programs'])
         # print("n:%s str:%s" % (name, search_string))
         return top_score ** 2, comment
 
@@ -104,7 +104,12 @@ if __name__ == '__main__':
              "ANAYA MARTINEZ",
              "MAZIOTIS, Nikos",
              "TIERRA",
-             "ABU FATIMA", "AHMED THE EGYPTIAN"
+             "ABU FATIMA", "AHMED THE EGYPTIAN",
+             "ABDUL CHAUDHRY",
+             "Ibrahim Issa Haji",
+             "RICARDO PEREZ",
+             "ABDUL GHANI",
+             "AKHUNDZADA EHSANULLAH", "MULLAH GUL AGHA"
              ]
 
     for n in NAMES:
