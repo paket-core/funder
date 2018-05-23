@@ -1,24 +1,27 @@
 """Test identitymind interface."""
+import os
 import unittest
-from pprint import pprint
 
 import identitymind
+import db
 
 LOGGER = identitymind.LOGGER
-LOGGER.setLevel('INFO')
+
+
+def print_result(kyc_result):
+    """Print IdentityMind results."""
+    LOGGER.debug(kyc_result)
+    for field in ['tid', 'user', 'res', 'rcd', 'state', 'ednaScoreCard']:
+        LOGGER.info("%s: %s", field, kyc_result.get(field))
 
 
 class IdentityMindTest(unittest.TestCase):
     """Test IdentityMind."""
-    def test_playing(self):
 
+    def test_playing(self):
+        """Test playing around."""
         kyc_post = identitymind.request_kyc(man='man', bfn="Tom", bsn="1520", profile='new', bco='USA', sco='USA')
         print_result(kyc_post)
-        # kyc_get = identitymind.get_kyc_status(kyc_post['tid'])
-        # LOGGER.debug(kyc_get)
-        # for f in ['tid', 'user', 'res', 'rcd', 'state', 'ednaScoreCard']:
-        #     LOGGER.info("%s: %s", f, kyc_get.get(f))
-
         self.assertEqual(kyc_post['state'], 'A')
 
     def test_current_reputation(self):
@@ -26,12 +29,12 @@ class IdentityMindTest(unittest.TestCase):
         check the `user` field. Can be managed in sandbox via the `bfn` parameter.
         """
         for val, resp in [
-            ('Tom', 'TRUSTED'),
-            ('Sue', 'SUSPICIOUS'),
-            ('Brad', 'BAD'),
-            ('someone', 'UNKNOWN')
+                ('Tom', 'TRUSTED'),
+                ('Sue', 'SUSPICIOUS'),
+                ('Brad', 'BAD'),
+                ('someone', 'UNKNOWN')
         ]:
-            LOGGER.warning("man='man called {}', bfn=val, bln='ed'".format(val))
+            LOGGER.warning("man='man called %s', bfn=val, bln='ed'", val)
             kyc_request = identitymind.request_kyc(man='man called {}'.format(val), bfn=val, bln="ed")
             print_result(kyc_request)
             self.assertEqual(kyc_request['user'], resp)
@@ -41,21 +44,66 @@ class IdentityMindTest(unittest.TestCase):
         check the `state` field. Can be managed in sandbox via the `bc` parameter.
         """
         for val, resp in [
-            ('Detroit', 'D'),
-            ('Monte Rio', 'R'),
-            ('someone', 'A')
+                ('Detroit', 'D'),
+                ('Monte Rio', 'R'),
+                ('someone', 'A')
         ]:
             kyc_request = identitymind.request_kyc(man='man from {}'.format(val), bc=val)
             print_result(kyc_request)
             self.assertEqual(kyc_request['state'], resp)
 
 
-def print_result(kyc_result):
-    LOGGER.debug(kyc_result)
-    for f in ['tid', 'user', 'res', 'rcd', 'state', 'ednaScoreCard']:
-        # pprint(kyc_result)
-        LOGGER.info("%s: %s", f, kyc_result.get(f))
+LOGGER = db.LOGGER
+db.DB_NAME = 'test.db'
 
+class DBTest(unittest.TestCase):
+    """Testing the database module."""
+
+    def setUp(self):
+        LOGGER.info('setting up')
+        try:
+            os.unlink(db.DB_NAME)
+        except FileNotFoundError:
+            pass
+        db.init_db()
+
+    def tearDown(self):
+        LOGGER.info('tearing down')
+        try:
+            os.unlink(db.DB_NAME)
+        except FileNotFoundError:
+            pass
+
+    def test_get_user_args(self):
+        """Test get_user arguments logic."""
+        with self.assertRaises(AssertionError) as exception_context:
+            db.get_user()
+        self.assertEqual(
+            str(exception_context.exception), 'specify either pubkey or paket_user',
+            'called get_user with no arguments')
+        with self.assertRaises(AssertionError) as exception_context:
+            db.get_user('foo', 'bar')
+        self.assertEqual(
+            str(exception_context.exception), 'specify either pubkey or paket_user',
+            'called get_user with two arguments')
+
+    def test_nonexistent(self):
+        """Test a non existing user."""
+        pubkey = 'pubkey'
+        with self.assertRaises(AssertionError) as exception_context:
+            db.get_user(pubkey)
+        self.assertEqual(
+            str(exception_context.exception), "user with pubkey {} does not exists".format(pubkey),
+            'called get_user with nonexisting user')
+
+    def test_create_user(self):
+        """Test creating a user."""
+        pubkey, paket_user = 'pubkey', 'paket_user'
+        db.create_user(pubkey, paket_user)
+        user = db.get_user(pubkey=pubkey)
+        self.assertEqual(user['paket_user'], paket_user)
+        user = db.get_user(paket_user=paket_user)
+        self.assertEqual(user['pubkey'], pubkey)
 
 if __name__ == '__main__':
     unittest.main()
