@@ -34,84 +34,87 @@ def init_db():
         sql.execute('''
             CREATE TABLE users(
                 pubkey VARCHAR(42) PRIMARY KEY,
-                full_name VARCHAR(256) NOT NULL,
-                phone_number VARCHAR(32) NOT NULL,
-                address VARCHAR(1024) NOT NULL,
                 paket_user VARCHAR(32) UNIQUE NOT NULL)''')
         LOGGER.debug('users table created')
         sql.execute('''
-            CREATE TABLE authorizations(
-                authorized_pubkey VARCHAR(42) NOT NULL,
-                viewd_pubkey VARCHAR(42) NOT NULL)''')
-        LOGGER.debug('authorizations table created')
+            CREATE TABLE credential_types(
+                id INTEGER PRIMARY KEY,
+                description VARCHAR(1024) NOT NULL)''')
+        LOGGER.debug('credential_types table created')
+        sql.execute('''
+            INSERT INTO credential_types(id, description) VALUES
+                (1, 'internal'),
+                (2, 'civic')''')
+        LOGGER.debug('credential_types table populated')
+        sql.execute('''
+            CREATE TABLE internal_credentials(
+                id INTEGER PRIMARY KEY,
+                full_name VARCHAR(256),
+                phone_number VARCHAR(32),
+                address VARCHAR(1024))''')
+        LOGGER.debug('internal_credentials table populated')
+        sql.execute('''
+            CREATE TABLE user_credentials(
+                pubkey VARCHAR(42) NOT NULL,
+                credential_type INTEGER NOT NULL,
+                credential_id NOT NULL,
+                FOREIGN KEY(pubkey) REFERENCES users(pubkey),
+                FOREIGN KEY(credential_type) REFERENCES credential_types(id))''')
+        LOGGER.debug('user_credentials table created')
         sql.execute('''
             CREATE TABLE test_results(
-                idx INTEGER PRIMARY KEY,
-                test_name VARCHAR(64) NOT NULL,
                 pubkey VARCHAR(42) NOT NULL,
+                test_name VARCHAR(64) NOT NULL,
                 result INTEGER,
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('test_results table created')
 
 
-def create_user(pubkey, full_name, phone_number, address, paket_user):
+def create_user(pubkey, paket_user):
     """Create a new user."""
     with sql_connection() as sql:
         try:
-            sql.execute("""
-                INSERT INTO users (pubkey, full_name, phone_number, address, paket_user)
-                VALUES (?, ?, ?, ?, ?)""", (pubkey, full_name, phone_number, address, paket_user))
+            sql.execute("INSERT INTO users (pubkey, paket_user) VALUES (?, ?)", (pubkey, paket_user))
         except sqlite3.IntegrityError as exception:
             bad_column_name = str(exception).split('.')[-1]
             bad_value = locals().get(bad_column_name)
             raise AssertionError("{} {} is non unique".format(bad_column_name, bad_value))
 
 
-def get_user(pubkey):
-    """Get user details."""
+def get_user(pubkey=None, paket_user=None):
+    """Get user pubkey, paket_user, and purchase allowance from either pubkey or paket_user."""
+    assert bool(pubkey or paket_user) != bool(pubkey and paket_user), 'specify either pubkey or paket_user'
+    condition = ('pubkey', pubkey) if pubkey else ('paket_user', paket_user)
     with sql_connection() as sql:
-        sql.execute("SELECT * FROM users WHERE users.pubkey = ?", (pubkey,))
-        user = sql.fetchone()
-        assert user is not None, "Unknown user with pubkey {}".format(pubkey)
-        return {key: user[key] for key in user.keys()} if user else None
+        sql.execute("SELECT * FROM users WHERE {} = ?".format(condition[0]), (condition[1],))
+        try:
+            return dict(sql.fetchone(), purchase_allowance='50$ a month')
+        except TypeError:
+            raise AssertionError("user with {} {} does not exists".format(*condition))
 
 
-def update_user_details(pubkey, full_name, phone_number, address):
-    """Update user details."""
-    with sql_connection() as sql:
-        sql.execute("UPDATE users SET full_name = ?, phone_number = ?, address = ?  WHERE pubkey = ?", (
-            full_name, phone_number, address, pubkey))
-    return get_user(pubkey)
-
-
-def is_authorized(authorized_pubkey, viewd_pubkey):
-    """Check to see if authorized_pubkey is authorized to view viewd_pubkey."""
-    with sql_connection() as sql:
-        sql.execute("SELECT 1 FROM authorizations WHERE authorized_pubkey = ? AND viewd_pubkey = ?", (
-            authorized_pubkey, viewd_pubkey))
-        return sql.fetchone() is not None
-
-
-def add_authorization(authorized_pubkey, viewd_pubkey):
-    """Add authorization for authorized_pubkey to view details of viewd_pubkey."""
-    if is_authorized(authorized_pubkey, viewd_pubkey):
-        LOGGER.warning("pubkey %s is already authorized to view %s", authorized_pubkey, viewd_pubkey)
-        return False
-    with sql_connection() as sql:
-        sql.execute("INSERT INTO authorizations (authorized_pubkey, viewd_pubkey) VALUES (?, ?)", (
-            authorized_pubkey, viewd_pubkey))
-    return True
-
-
-def remove_authorization(authorized_pubkey, viewd_pubkey):
-    """Remove authorization for authorized_pubkey to view details of viewd_pubkey."""
-    if not is_authorized(authorized_pubkey, viewd_pubkey):
-        LOGGER.warning("pubkey %s is already not authorized to view %s", authorized_pubkey, viewd_pubkey)
-        return False
-    with sql_connection() as sql:
-        sql.execute("DELETE FROM authorizations WHERE authorized_pubkey = ? AND viewd_pubkey = ?", (
-            authorized_pubkey, viewd_pubkey))
-    return True
+#def create_credential(pubkey)
+#
+#
+#def update_user_details(pubkey, **kwargs):
+#    """Create a new user."""
+#    with sql_connection() as sql:
+#        sql.execute('SELECT * FROM users LIMIT 1')
+#        columns = [column[0] for column in sql.description]
+#        nonexisting_columns = set(kwargs.keys()) - set(columns)
+#        if nonexisting_columns:
+#            raise AssertionError("users do not support the following fields: {}".format(nonexisting_columns))
+#        for key, value in kwargs.items():
+#            sql.execute("UPDATE users SET {} = ? WHERE pubkey = ?".format(key), (value, pubkey))
+#
+#
+#def get_user(pubkey):
+#    """Get user details."""
+#    with sql_connection() as sql:
+#        sql.execute("SELECT * FROM users WHERE users.pubkey = ?", (pubkey,))
+#        user = sql.fetchone()
+#        assert user is not None, "Unknown user with pubkey {}".format(pubkey)
+#        return {key: user[key] for key in user.keys()} if user else None
 
 
 def update_test(test_name, pubkey, result=None):
@@ -134,3 +137,81 @@ def get_test_result(test_name, pubkey):
             return sql.fetchone()[0]
         except TypeError:
             return None
+
+
+
+
+#def create_user(pubkey, paket_user, seed=None):
+#    """Create a new user."""
+#    with sql_connection() as sql:
+#        try:
+#            sql.execute("INSERT INTO users (pubkey, paket_user) VALUES (?, ?)", (pubkey, paket_user))
+#            if seed is not None:
+#                sql.execute("INSERT INTO keys (pubkey, seed) VALUES (?, ?)", (pubkey, seed))
+#        except sqlite3.IntegrityError as exception:
+#            bad_column_name = str(exception).split('.')[-1]
+#            bad_value = locals().get(bad_column_name)
+#            raise DuplicateUser("{} {} is non unique".format(bad_column_name, bad_value))
+#
+#
+#def get_user(pubkey):
+#    """Get user details."""
+#    with sql_connection() as sql:
+#        sql.execute("""
+#            SELECT * FROM users
+#            LEFT JOIN keys on users.pubkey = keys.pubkey
+#            WHERE users.pubkey = ?""", (pubkey,))
+#        user = sql.fetchone()
+#        if user is None:
+#            raise UnknownUser("Unknown user with pubkey {}".format(pubkey))
+#        return {key: user[key] for key in user.keys()} if user else None
+#
+#
+#def update_user_details(pubkey, full_name, phone_number):
+#    """Update user details."""
+#    with sql_connection() as sql:
+#        sql.execute("""
+#            UPDATE users SET
+#            full_name = ?,
+#            phone_number = ?
+#            WHERE pubkey = ?""", (full_name, phone_number, pubkey))
+#    return get_user(pubkey)
+#
+#
+#def get_users():
+#    """Get list of users and their details - for debug only."""
+#    with sql_connection() as sql:
+#        sql.execute('SELECT * FROM users')
+#        users = sql.fetchall()
+#    return {user['pubkey']: {key: user[key] for key in user.keys() if key != 'pubkey'} for user in users}
+#
+#
+#
+#
+#
+#
+#
+## Sandbox setup.
+#
+#
+#def create_db_user(paket_user, pubkey):
+#    """Create a new user in the DB."""
+#    LOGGER.debug("Creating user %s", paket_user)
+#    try:
+#        db.create_user(pubkey, paket_user)
+#        db.update_user_details(pubkey, paket_user, '123-456')
+#        webserver.validation.update_nonce(pubkey, 1, paket_user)
+#    except db.DuplicateUser:
+#        LOGGER.debug("User %s already exists", paket_user)
+#
+#
+#def init_sandbox():
+#    """Initialize database with debug values and fund users. For debug only."""
+#    webserver.validation.init_nonce_db()
+#    db.init_db()
+#    for paket_user, pubkey in [
+#            (key.split('PAKET_USER_', 1)[1], value)
+#            for key, value in os.environ.items()
+#            if key.startswith('PAKET_USER_')
+#    ]:
+#        create_db_user(paket_user, pubkey)
