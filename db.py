@@ -92,43 +92,35 @@ def get_user(pubkey=None, paket_user=None):
             raise AssertionError("user with {} {} does not exists".format(*condition))
 
 
-def update_internal_user_info(pubkey, **kwargs):
-    """Update optional details in internal user info."""
+def set_internal_user_info(pubkey, **kwargs):
+    """Add or update optional details in local user info."""
     verify_columns('internal_user_infos', kwargs.keys())
-    with sql_connection() as sql:
-        for key, value in kwargs.items():
-            sql.execute("UPDATE internal_user_infos SET {} = ? WHERE pubkey = ?".format(key), (value, pubkey))
-
-
-def create_internal_user_info(pubkey, **kwargs):
-    """Add optional details to local user info."""
     with sql_connection() as sql:
         try:
             sql.execute("INSERT INTO internal_user_infos (pubkey) VALUES (?)", (pubkey,))
         except sqlite3.IntegrityError:
-            LOGGER.warning("user %s already has internal user info", pubkey)
-    update_internal_user_info(pubkey, **kwargs)
+            pass
+        for key, value in kwargs.items():
+            sql.execute("UPDATE internal_user_infos SET {} = ? WHERE pubkey = ?".format(key), (value, pubkey))
 
 
-def tmp():
+def get_user_infos(pubkey):
+    """Get all user infos."""
     with sql_connection() as sql:
-        sql.execute('select * from internal_user_infos')
-        import pprint
-        for row in sql.fetchall():
-            LOGGER.info(pprint.pformat({key: row[key] for key in row.keys()}))
+        sql.execute("""
+            SELECT * FROM users
+            LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey
+            WHERE users.pubkey = ?""", (pubkey,))
+        return dict(sql.fetchone())
 
 
-#def create_user_info(pubkey)
-#
-#
-#
-#def get_user(pubkey):
-#    """Get user details."""
-#    with sql_connection() as sql:
-#        sql.execute("SELECT * FROM users WHERE users.pubkey = ?", (pubkey,))
-#        user = sql.fetchone()
-#        assert user is not None, "Unknown user with pubkey {}".format(pubkey)
-#        return {key: user[key] for key in user.keys()} if user else None
+def get_users():
+    """Get list of users and their details - for debug only."""
+    with sql_connection() as sql:
+        sql.execute('''
+            SELECT * FROM users
+            LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey''')
+        return {user['pubkey']: dict(user) for user in sql.fetchall()}
 
 
 def update_test(test_name, pubkey, result=None):
@@ -153,53 +145,6 @@ def get_test_result(test_name, pubkey):
             return None
 
 
-
-
-#def create_user(pubkey, paket_user, seed=None):
-#    """Create a new user."""
-#    with sql_connection() as sql:
-#        try:
-#            sql.execute("INSERT INTO users (pubkey, paket_user) VALUES (?, ?)", (pubkey, paket_user))
-#            if seed is not None:
-#                sql.execute("INSERT INTO keys (pubkey, seed) VALUES (?, ?)", (pubkey, seed))
-#        except sqlite3.IntegrityError as exception:
-#            bad_column_name = str(exception).split('.')[-1]
-#            bad_value = locals().get(bad_column_name)
-#            raise DuplicateUser("{} {} is non unique".format(bad_column_name, bad_value))
-#
-#
-#def get_user(pubkey):
-#    """Get user details."""
-#    with sql_connection() as sql:
-#        sql.execute("""
-#            SELECT * FROM users
-#            LEFT JOIN keys on users.pubkey = keys.pubkey
-#            WHERE users.pubkey = ?""", (pubkey,))
-#        user = sql.fetchone()
-#        if user is None:
-#            raise UnknownUser("Unknown user with pubkey {}".format(pubkey))
-#        return {key: user[key] for key in user.keys()} if user else None
-#
-#
-#def update_user_details(pubkey, full_name, phone_number):
-#    """Update user details."""
-#    with sql_connection() as sql:
-#        sql.execute("""
-#            UPDATE users SET
-#            full_name = ?,
-#            phone_number = ?
-#            WHERE pubkey = ?""", (full_name, phone_number, pubkey))
-#    return get_user(pubkey)
-#
-#
-#def get_users():
-#    """Get list of users and their details - for debug only."""
-#    with sql_connection() as sql:
-#        sql.execute('SELECT * FROM users')
-#        users = sql.fetchall()
-#    return {user['pubkey']: {key: user[key] for key in user.keys() if key != 'pubkey'} for user in users}
-#
-#
 #
 #
 #

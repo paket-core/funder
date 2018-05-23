@@ -107,11 +107,15 @@ class DBTest(unittest.TestCase):
     def test_internal_user_info(self):
         """Test adding, modifying, and reading internal user info."""
         pubkey, paket_user = 'pubkey', 'paket_user'
+        phone_number, address = '1234', 'asdf'
         self.internal_test_create_user(pubkey, paket_user)
-        db.create_internal_user_info(pubkey, phone_number='1234')
-        db.tmp()
-        db.create_internal_user_info(pubkey, phone_number='4321', address='asdf')
-        db.tmp()
+        db.set_internal_user_info(pubkey, phone_number=phone_number)
+        self.assertEqual(db.get_user_infos(pubkey)['phone_number'], phone_number)
+        phone_number = phone_number[::-1]
+        db.set_internal_user_info(pubkey, phone_number=phone_number, address=address)
+        self.assertEqual(db.get_user_infos(pubkey)['phone_number'], phone_number)
+        self.assertEqual(db.get_user_infos(pubkey)['address'], address)
+
 
 if __name__ == '__main__':
     unittest.main()
