@@ -23,6 +23,22 @@ def sql_connection(db_name=None):
             connection.close()
 
 
+def get_table_columns(table_name):
+    """Get the fields of a specific table."""
+    with sql_connection() as sql:
+        sql.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", (table_name,))
+        assert sql.fetchone(), "table {} does not exist".format(table_name)
+        sql.execute("SELECT * FROM {} LIMIT 1".format(table_name))
+        return [column[0] for column in sql.description]
+
+
+def verify_columns(table_name, accessed_columns):
+    """Raise an exception if table_name does not contain all of accessed_columns."""
+    nonexisting_columns = set(accessed_columns) - set(get_table_columns(table_name))
+    if nonexisting_columns:
+        raise AssertionError("users do not support the following fields: {}".format(nonexisting_columns))
+
+
 def init_db():
     """Initialize the database."""
     with sql_connection() as sql:
@@ -37,30 +53,13 @@ def init_db():
                 paket_user VARCHAR(32) UNIQUE NOT NULL)''')
         LOGGER.debug('users table created')
         sql.execute('''
-            CREATE TABLE credential_types(
-                id INTEGER PRIMARY KEY,
-                description VARCHAR(1024) NOT NULL)''')
-        LOGGER.debug('credential_types table created')
-        sql.execute('''
-            INSERT INTO credential_types(id, description) VALUES
-                (1, 'internal'),
-                (2, 'civic')''')
-        LOGGER.debug('credential_types table populated')
-        sql.execute('''
-            CREATE TABLE internal_credentials(
-                id INTEGER PRIMARY KEY,
+            CREATE TABLE internal_user_infos(
+                pubkey VARCHAR(42) PRIMARY KEY,
                 full_name VARCHAR(256),
                 phone_number VARCHAR(32),
-                address VARCHAR(1024))''')
-        LOGGER.debug('internal_credentials table populated')
-        sql.execute('''
-            CREATE TABLE user_credentials(
-                pubkey VARCHAR(42) NOT NULL,
-                credential_type INTEGER NOT NULL,
-                credential_id NOT NULL,
-                FOREIGN KEY(pubkey) REFERENCES users(pubkey),
-                FOREIGN KEY(credential_type) REFERENCES credential_types(id))''')
-        LOGGER.debug('user_credentials table created')
+                address VARCHAR(1024),
+                FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
+        LOGGER.debug('internal_user_infos table populated')
         sql.execute('''
             CREATE TABLE test_results(
                 pubkey VARCHAR(42) NOT NULL,
@@ -93,19 +92,34 @@ def get_user(pubkey=None, paket_user=None):
             raise AssertionError("user with {} {} does not exists".format(*condition))
 
 
-#def create_credential(pubkey)
+def update_internal_user_info(pubkey, **kwargs):
+    """Update optional details in internal user info."""
+    verify_columns('internal_user_infos', kwargs.keys())
+    with sql_connection() as sql:
+        for key, value in kwargs.items():
+            sql.execute("UPDATE internal_user_infos SET {} = ? WHERE pubkey = ?".format(key), (value, pubkey))
+
+
+def create_internal_user_info(pubkey, **kwargs):
+    """Add optional details to local user info."""
+    with sql_connection() as sql:
+        try:
+            sql.execute("INSERT INTO internal_user_infos (pubkey) VALUES (?)", (pubkey,))
+        except sqlite3.IntegrityError:
+            LOGGER.warning("user %s already has internal user info", pubkey)
+    update_internal_user_info(pubkey, **kwargs)
+
+
+def tmp():
+    with sql_connection() as sql:
+        sql.execute('select * from internal_user_infos')
+        import pprint
+        for row in sql.fetchall():
+            LOGGER.info(pprint.pformat({key: row[key] for key in row.keys()}))
+
+
+#def create_user_info(pubkey)
 #
-#
-#def update_user_details(pubkey, **kwargs):
-#    """Create a new user."""
-#    with sql_connection() as sql:
-#        sql.execute('SELECT * FROM users LIMIT 1')
-#        columns = [column[0] for column in sql.description]
-#        nonexisting_columns = set(kwargs.keys()) - set(columns)
-#        if nonexisting_columns:
-#            raise AssertionError("users do not support the following fields: {}".format(nonexisting_columns))
-#        for key, value in kwargs.items():
-#            sql.execute("UPDATE users SET {} = ? WHERE pubkey = ?".format(key), (value, pubkey))
 #
 #
 #def get_user(pubkey):

@@ -87,23 +87,31 @@ class DBTest(unittest.TestCase):
             str(exception_context.exception), 'specify either pubkey or paket_user',
             'called get_user with two arguments')
 
-    def test_nonexistent(self):
+    def internal_test_nonexistent(self, pubkey):
         """Test a non existing user."""
-        pubkey = 'pubkey'
         with self.assertRaises(AssertionError) as exception_context:
             db.get_user(pubkey)
         self.assertEqual(
             str(exception_context.exception), "user with pubkey {} does not exists".format(pubkey),
             'called get_user with nonexisting user')
 
-    def test_create_user(self):
+    def internal_test_create_user(self, pubkey, paket_user):
         """Test creating a user."""
-        pubkey, paket_user = 'pubkey', 'paket_user'
+        self.internal_test_nonexistent(pubkey)
         db.create_user(pubkey, paket_user)
         user = db.get_user(pubkey=pubkey)
         self.assertEqual(user['paket_user'], paket_user)
         user = db.get_user(paket_user=paket_user)
         self.assertEqual(user['pubkey'], pubkey)
+
+    def test_internal_user_info(self):
+        """Test adding, modifying, and reading internal user info."""
+        pubkey, paket_user = 'pubkey', 'paket_user'
+        self.internal_test_create_user(pubkey, paket_user)
+        db.create_internal_user_info(pubkey, phone_number='1234')
+        db.tmp()
+        db.create_internal_user_info(pubkey, phone_number='4321', address='asdf')
+        db.tmp()
 
 if __name__ == '__main__':
     unittest.main()
