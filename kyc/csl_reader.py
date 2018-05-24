@@ -8,10 +8,11 @@ details on the file:
 build.export.gov/build/idcplg?IdcService=DOWNLOAD_PUBLIC_FILE&RevisionSelectionMethod=Latest&dDocName=eg_main_040971
 """
 import csv
-import requests
-import os.path
 import time
 
+import util
+import os.path
+import requests
 from fuzzywuzzy import fuzz
 
 
@@ -41,12 +42,14 @@ class CSLListChecker:
             print("Local file '%s' not found" % cls.filename)
 
         try:
+            util.send_countly_event('download csl', 0)
             response = requests.get(cls.url)
             # Throw an error for bad status codes
             response.raise_for_status()
             with open(cls.filename, 'wb') as handle:
                 for block in response.iter_content(1024):
                     handle.write(block)
+            util.send_countly_event('download csl', 1, end_session=1)
         except Exception as e:
             print("error loading %s, error: %s" % (cls.url, e))
 
@@ -75,41 +78,55 @@ class CSLListChecker:
         """
         top_score = 0.0
         comment = ''
+        programs = ''
         for row in cls.all_rows:
             search_string = row['name'] + " " + row['alt_names']
             ratio = fuzz.ratio(name.lower(), search_string.lower()) / 100
             partial_ratio = fuzz.partial_ratio(name.lower(), search_string.lower()) / 100
 
             # score is based on partial fuzzy search plus a small factor for full search
-            fuzzy_score = min(1.0, .95*partial_ratio + ratio / 5)
+            fuzzy_score = min(1.0, .95 * partial_ratio + ratio / 5)
             if fuzzy_score > .6 and fuzzy_score > top_score:
                 # print("SC: %.2f %.2f n:%s str:%s" % (partial_ratio, ratio, name, search_string))
                 top_score = fuzzy_score
                 comment = "name:{} - aka:{}  program:{}".format(row['name'], row['alt_names'], row['programs'])
-        # print("n:%s str:%s" % (name, search_string))
-        return top_score ** 2, comment
+                programs = str(row['programs'])
+        final_score = top_score ** 2
+        if final_score > .95:
+            util.send_countly_event('KYC_verify', 1, segmentation={'programs': programs, 'result': 'flagged'})
+        elif final_score > .85:
+            util.send_countly_event('KYC_verify', 1, segmentation={'programs': programs, 'result': 'suspicious'})
+        else:
+            util.send_countly_event('KYC_verify', 1, segmentation={'result': 'pass'}, hour=17)
+        return final_score, comment
 
 
 if __name__ == '__main__':
+    """
+    temp testing
+    """
+
     csl = CSLListChecker()
-    NAMES = ["oren", " Oren ", "oren Gampel",
-             "osama", "usama", "bin laden, Usama", "bin laden, osama", "usama bin laden",
-             "osama Tallal",
-             "israel levin",
-             "nationality",
-             "KISHK egypt",
-             "Ori Levi",
-             "Babbar Khalsa",
-             "Jose Maria", "Jose naria", "Jose Maria, SySOm", "sison, Jose Maria", "sisson, Jose Maria",
-             "ANAYA MARTINEZ",
-             "MAZIOTIS, Nikos",
-             "TIERRA",
-             "ABU FATIMA", "AHMED THE EGYPTIAN",
-             "ABDUL CHAUDHRY",
-             "Ibrahim Issa Haji",
-             "RICARDO PEREZ",
-             "ABDUL GHANI",
-             "AKHUNDZADA EHSANULLAH", "MULLAH GUL AGHA"
+    NAMES = [
+                "oren", " Oren ", "oren Gampel",
+                "osama", "usama", "bin laden, Usama", "bin laden, osama", "usama bin laden",
+                "osama Tallal",
+                "israel levin",
+                "nationality",
+                "KISHK egypt",
+                "Ori Levi",
+                "Babbar Khalsa",
+                "Jose Maria", "Jose naria", "Jose Maria, SySOm", "sison, Jose Maria", "sisson, Jose Maria",
+                "ANAYA MARTINEZ",
+                "MAZIOTIS, Nikos",
+                "TIERRA",
+                "ABU FATIMA", "AHMED THE EGYPTIAN",
+                "ABDUL CHAUDHRY",
+                "Ibrahim Issa Haji",
+                "RICARDO PEREZ",
+                "ABDUL GHANI",
+                "AKHUNDZADA EHSANULLAH", "MULLAH GUL AGHA",
+                "vekselberg Victor"
              ]
 
     for n in NAMES:
