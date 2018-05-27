@@ -97,11 +97,11 @@ class CSLListChecker:
                 programs = str(row['programs'])
         final_score = top_score ** 2
         if final_score > .95:
-            util.send_countly_event('KYC_verify', 1, segmentation={'programs': programs, 'result': 'flagged'})
+            util.send_countly_event('KYC_verify', 1, programs=programs, result='flagged')
         elif final_score > .85:
-            util.send_countly_event('KYC_verify', 1, segmentation={'programs': programs, 'result': 'suspicious'})
+            util.send_countly_event('KYC_verify', 1, programs=programs, result='suspicious')
         else:
-            util.send_countly_event('KYC_verify', 1, segmentation={'result': 'pass'}, hour=17)
+            util.send_countly_event('KYC_verify', 1, result='pass', hour=17)
         return final_score, comment
 
 
