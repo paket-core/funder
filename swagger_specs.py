@@ -72,26 +72,42 @@ USER_INFOS = {
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-        {
-            'name': 'full_name',
-            'in': 'formData',
-            'type': 'string',
-            'required': False,
-        },
-        {
-            'name': 'phone_number',
-            'in': 'formData',
-            'type': 'string',
-            'required': False,
-        },
-        {
-            'name': 'address',
-            'in': 'formData',
-            'type': 'string',
-            'required': False,
-        },
-    ],
+        {'name': 'full_name', 'in': 'formData', 'type': 'string', 'required': False},
+        {'name': 'phone_number', 'in': 'formData', 'type': 'string', 'required': False},
+        {'name': 'address', 'in': 'formData', 'type': 'string', 'required': False}],
     'responses': {
         '201': {'description': 'user details set'},
         '400': {'description': 'invalid user info'},
         '404': {'description': 'user not found'}}}
+
+CREATE_STELLAR_ACCOUNT = {
+    'parameters': [
+        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'payment_currency', 'in': 'formData', 'type': 'string', 'required': True}],
+    'responses': {
+        '201': {'description': 'payment address generated'},
+        '403': {'description': 'user not authorized'}}}
+
+PURCHASE_XLM = {
+    'parameters': [
+        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'amount_xlms', 'in': 'formData', 'type': 'integer', 'required': True},
+        {'name': 'payment_currency', 'in': 'formData', 'type': 'string', 'required': True}],
+    'responses': {
+        '201': {'description': 'payment address generated'},
+        '403': {'description': 'user not authorized'}}}
+
+PURCHASE_BUL = {
+    'parameters': [
+        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'amount_buls', 'in': 'formData', 'type': 'integer', 'required': True},
+        {'name': 'payment_currency', 'in': 'formData', 'type': 'string', 'required': True}],
+    'responses': {
+        '201': {'description': 'payment address generated'},
+        '403': {'description': 'user not authorized'}}}
