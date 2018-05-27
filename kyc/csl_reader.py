@@ -8,12 +8,16 @@ details on the file:
 build.export.gov/build/idcplg?IdcService=DOWNLOAD_PUBLIC_FILE&RevisionSelectionMethod=Latest&dDocName=eg_main_040971
 """
 import csv
+import os.path
 import time
 
-import util
-import os.path
+import fuzzywuzzy.fuzz
 import requests
-from fuzzywuzzy import fuzz
+
+import logger
+import util
+
+logger.setup()
 
 
 class CSLListChecker:
@@ -81,8 +85,8 @@ class CSLListChecker:
         programs = ''
         for row in cls.all_rows:
             search_string = row['name'] + " " + row['alt_names']
-            ratio = fuzz.ratio(name.lower(), search_string.lower()) / 100
-            partial_ratio = fuzz.partial_ratio(name.lower(), search_string.lower()) / 100
+            ratio = fuzzywuzzy.fuzz.ratio(name.lower(), search_string.lower()) / 100
+            partial_ratio = fuzzywuzzy.fuzz.partial_ratio(name.lower(), search_string.lower()) / 100
 
             # score is based on partial fuzzy search plus a small factor for full search
             fuzzy_score = min(1.0, .95 * partial_ratio + ratio / 5)
