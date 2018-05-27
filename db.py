@@ -143,34 +143,3 @@ def get_test_result(test_name, pubkey):
             return sql.fetchone()[0]
         except TypeError:
             return None
-
-
-#
-#
-#
-#
-#
-## Sandbox setup.
-#
-#
-#def create_db_user(paket_user, pubkey):
-#    """Create a new user in the DB."""
-#    LOGGER.debug("Creating user %s", paket_user)
-#    try:
-#        db.create_user(pubkey, paket_user)
-#        db.update_user_details(pubkey, paket_user, '123-456')
-#        webserver.validation.update_nonce(pubkey, 1, paket_user)
-#    except db.DuplicateUser:
-#        LOGGER.debug("User %s already exists", paket_user)
-#
-#
-#def init_sandbox():
-#    """Initialize database with debug values and fund users. For debug only."""
-#    webserver.validation.init_nonce_db()
-#    db.init_db()
-#    for paket_user, pubkey in [
-#            (key.split('PAKET_USER_', 1)[1], value)
-#            for key, value in os.environ.items()
-#            if key.startswith('PAKET_USER_')
-#    ]:
-#        create_db_user(paket_user, pubkey)
