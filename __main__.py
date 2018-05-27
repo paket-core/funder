@@ -1,4 +1,4 @@
-"""Run the identity server."""
+"""Run the PaKeT funding server."""
 import sys
 import os.path
 
@@ -7,13 +7,12 @@ import webserver
 # Python imports are silly.
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 # pylint: disable=wrong-import-position
-import identity
-import identity.swagger_specs
+import funder.swagger_specs
 # pylint: enable=wrong-import-position
 
 if len(sys.argv) == 2:
-    IDENTITY_PORT = sys.argv[1]
+    FUNDER_PORT = sys.argv[1]
 else:
-    IDENTITY_PORT = os.environ.get('PAKET_IDENTITY_PORT', 5000)
+    FUNDER_PORT = os.environ.get('PAKET_FUNDER_PORT', 5000)
 
-webserver.run(identity.BLUEPRINT, identity.swagger_specs.CONFIG, IDENTITY_PORT)
+webserver.run(funder.BLUEPRINT, funder.swagger_specs.CONFIG, FUNDER_PORT)

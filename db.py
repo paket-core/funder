@@ -3,8 +3,8 @@ import contextlib
 import logging
 import sqlite3
 
-LOGGER = logging.getLogger('pkt.identity.db')
-DB_NAME = 'identity.db'
+LOGGER = logging.getLogger('pkt.funder.db')
+DB_NAME = 'funder.db'
 
 
 @contextlib.contextmanager
@@ -50,7 +50,7 @@ def init_db():
         sql.execute('''
             CREATE TABLE users(
                 pubkey VARCHAR(42) PRIMARY KEY,
-                paket_user VARCHAR(32) UNIQUE NOT NULL)''')
+                call_sign VARCHAR(32) UNIQUE NOT NULL)''')
         LOGGER.debug('users table created')
         sql.execute('''
             CREATE TABLE internal_user_infos(
@@ -69,21 +69,21 @@ def init_db():
         LOGGER.debug('test_results table created')
 
 
-def create_user(pubkey, paket_user):
+def create_user(pubkey, call_sign):
     """Create a new user."""
     with sql_connection() as sql:
         try:
-            sql.execute("INSERT INTO users (pubkey, paket_user) VALUES (?, ?)", (pubkey, paket_user))
+            sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (?, ?)", (pubkey, call_sign))
         except sqlite3.IntegrityError as exception:
             bad_column_name = str(exception).split('.')[-1]
             bad_value = locals().get(bad_column_name)
             raise AssertionError("{} {} is non unique".format(bad_column_name, bad_value))
 
 
-def get_user(pubkey=None, paket_user=None):
-    """Get user pubkey, paket_user, and purchase allowance from either pubkey or paket_user."""
-    assert bool(pubkey or paket_user) != bool(pubkey and paket_user), 'specify either pubkey or paket_user'
-    condition = ('pubkey', pubkey) if pubkey else ('paket_user', paket_user)
+def get_user(pubkey=None, call_sign=None):
+    """Get user pubkey, call_sign, and purchase allowance from either pubkey or call_sign."""
+    assert bool(pubkey or call_sign) != bool(pubkey and call_sign), 'specify either pubkey or call_sign'
+    condition = ('pubkey', pubkey) if pubkey else ('call_sign', call_sign)
     with sql_connection() as sql:
         sql.execute("SELECT * FROM users WHERE {} = ?".format(condition[0]), (condition[1],))
         try:

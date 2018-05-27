@@ -7,7 +7,7 @@ import logger
 HOST = 'https://sandbox.identitymind.com'
 USER = 'paket'
 PASS = 'XXX'
-LOGGER = logger.logging.getLogger('pkt.identity')
+LOGGER = logger.logging.getLogger('pkt.funder.identitymind')
 
 logger.setup()
 

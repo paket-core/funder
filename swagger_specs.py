@@ -1,7 +1,7 @@
-"""Swagger specifications of Identity Server."""
-VERSION = 1
+"""Swagger specifications of Funding Server."""
+VERSION = 2
 CONFIG = {
-    'title': 'PaKeT identity API',
+    'title': 'PaKeT funding API',
     'uiversion': 2,
     'specs_route': '/',
     'specs': [{
@@ -9,12 +9,12 @@ CONFIG = {
         'route': '/apispec.json',
     }],
     'info': {
-        'title': 'The PaKeT Identity Server API',
+        'title': 'The PaKeT Funding Server API',
         'version': VERSION,
         'contact': {
             'name': 'The PaKeT Project',
             'email': 'israel@paket.global',
-            'url': 'https://identity.paket.global',
+            'url': 'https://fund.paket.global',
         },
         'license': {
             'name': 'GNU GPL 3.0',
@@ -22,72 +22,56 @@ CONFIG = {
         },
         'description': '''
 
-The Identity server is responsible for registering users. 
-A user registration is simply a connection between a single BUL account and the details of it's holder.
-The Identity Server also performs KYC/AML checks on registered users.
+The Funding server is responsible for giving users a simple way to create
+Stellar accounts, purchase XLMs used to pay for the Stellar transactions, and
+BULs used to launcha packages.
 
-BULs Account
---
-A BULs account is a Stellar account that trusts PaKeT's BUL token.
+This requires user registration, so we can perform KYC/AML checks.
 
-User Details
---  
-Details of the person holding the account, including: 
- - full_name 
- - phone_number 
- - address
- - paket_user
-  
-These details are added at registration time.
-Details on the KYC status of the user:
-- KYC status - based on the servers tests
-- Funding limit - the maximal amount that the user is allowed to purchase. This is dependant on the user's KYC status.
+A secondary function of the Funding server is an internal identity server,
+which resolves a unique call sign to a public key and Stellar address.
 
-Authorization
---
-The data is available only to the user who registered, and anyone he authorize access to. 
-A normal process is for a user to authorize himself, the PaKeT server [and the funding server??].  
-
+Security
+========
+Our calls are split into the following security levels:
+ - Debug functions: require no authentication, available only in debug mode.
+ - Anonymous functions: require no authentication.
+ - Authenticated functions: require asymmetric key authentication. Not tested
+   in debug mode.
+    - The 'Pubkey' header will contain the user's pubkey.
+    - The 'Fingerprint' header is constructed from the comma separated
+      concatenation of the called URI, all the arguments (as key=value), and an
+      ever increasing nonce (recommended to use Unix time in milliseconds).
+    - The 'Signature' header will contain the signature of the key specified in
+      the 'Pubkey' header on the fingerprint specified in the 'Fingerprint'
+      header, encoded to Base64 ASCII.
 
 The API
-=======
+======='''}}
 
+CREATE_USER = {
+    'parameters': [
+        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'call_sign', 'in': 'formData', 'required': True, 'type': 'string'}],
+    'responses': {
+        '201': {'description': 'user created'},
+        '400': {'description': 'bad Request: pubkey or call_sign are not unique'}}}
 
-
-        '''
-    }
-}
+GET_USER = {
+    'parameters': [
+        {'name': 'pubkey', 'in': 'formData', 'required': False, 'type': 'string'},
+        {'name': 'call_sign', 'in': 'formData', 'required': False, 'type': 'string'}],
+    'responses': {
+        '200': {'description': 'user details'},
+        '404': {'description': 'user not found'}}}
 
 ADD_USER = {
     'parameters': [
-        {
-            'name': 'Pubkey',
-            'default': 'GBQOQ4LJC5YNIAYIC3WPNGLPHNBKAP6UJTLC3KGXI6QLZSFGJSASEOC4',
-            'in': 'header',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'Fingerprint',
-            'in': 'header',
-            'default':
-                'http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'Signature',
-            'in': 'header',
-            'default': '0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
+        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
         {
             'name': 'full_name',
             'in': 'formData',
@@ -119,145 +103,6 @@ ADD_USER = {
         },
         '400': {
             'description': 'Bad Request: pubkey is not related to a valid account'
-        }
-    }
-}
-
-GET_USER = {
-    'parameters': [
-        {
-            'name': 'Pubkey',
-            'default': 'GBQOQ4LJC5YNIAYIC3WPNGLPHNBKAP6UJTLC3KGXI6QLZSFGJSASEOC4',
-            'in': 'header',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'Fingerprint',
-            'in': 'header',
-            'default':
-                'http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'Signature',
-            'in': 'header',
-            'default': '0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'queried_pubkey',
-            'in': 'query',
-            'type': 'string',
-            'required': False,
-        }
-    ],
-    'responses': {
-        '200': {
-            'description': 'User retrieved',
-        },
-        '403': {
-            'description': 'Forbidden. Requesting user is not authorized with information about requested user.',
-        },
-        '404': {
-            'description': 'Not Found. Requested user is not registered.',
-        }
-
-    }
-}
-
-AUTHORIZE = {
-    'parameters': [
-        {
-            'name': 'Pubkey',
-            'default': 'GBQOQ4LJC5YNIAYIC3WPNGLPHNBKAP6UJTLC3KGXI6QLZSFGJSASEOC4',
-            'in': 'header',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'Fingerprint',
-            'in': 'header',
-            'default':
-                'http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'Signature',
-            'in': 'header',
-            'default': '0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'authorized_pubkey',
-            'in': 'formData',
-            'type': 'string',
-            'required': True,
-        },
-    ],
-    'responses': {
-        '201': {
-            'description': 'Authorization added',
-        }
-    }
-}
-
-UNAUTHORIZE = {
-    'parameters': [
-        {
-            'name': 'Pubkey',
-            'default': 'GBQOQ4LJC5YNIAYIC3WPNGLPHNBKAP6UJTLC3KGXI6QLZSFGJSASEOC4',
-            'in': 'header',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'Fingerprint',
-            'in': 'header',
-            'default':
-                'http://localhost:5000/v1/send_buls,to_pubkey=pubkey,amount_buls=amount,1521650747',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'Signature',
-            'in': 'header',
-            'default': '0xa7d77cf679a2456325bbba3b92d994f5987b68c147bad18e24e6b66f5dc',
-            'schema': {
-                'type': 'string',
-                'format': 'string'
-            }
-        },
-        {
-            'name': 'authorized_pubkey',
-            'in': 'formData',
-            'type': 'string',
-            'required': True,
-        },
-    ],
-    'responses': {
-        '201': {
-            'description': 'Authorization revoked',
         }
     }
 }
