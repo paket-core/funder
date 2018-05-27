@@ -67,7 +67,7 @@ GET_USER = {
         '200': {'description': 'user details'},
         '404': {'description': 'user not found'}}}
 
-ADD_USER = {
+USER_INFOS = {
     'parameters': [
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
@@ -76,33 +76,22 @@ ADD_USER = {
             'name': 'full_name',
             'in': 'formData',
             'type': 'string',
-            'required': True,
+            'required': False,
         },
         {
             'name': 'phone_number',
             'in': 'formData',
             'type': 'string',
-            'required': True,
+            'required': False,
         },
         {
             'name': 'address',
             'in': 'formData',
             'type': 'string',
-            'required': True,
-        },
-        {
-            'name': 'paket_user',
-            'in': 'formData',
-            'type': 'string',
-            'required': True,
+            'required': False,
         },
     ],
     'responses': {
-        '201': {
-            'description': 'User created'
-        },
-        '400': {
-            'description': 'Bad Request: pubkey is not related to a valid account'
-        }
-    }
-}
+        '201': {'description': 'user details set'},
+        '400': {'description': 'invalid user info'},
+        '404': {'description': 'user not found'}}}

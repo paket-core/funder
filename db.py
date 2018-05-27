@@ -7,6 +7,10 @@ LOGGER = logging.getLogger('pkt.funder.db')
 DB_NAME = 'funder.db'
 
 
+class UserNotFound(Exception):
+    """Requested user does not exist."""
+
+
 @contextlib.contextmanager
 def sql_connection(db_name=None):
     """Context manager for querying the database."""
@@ -89,7 +93,7 @@ def get_user(pubkey=None, call_sign=None):
         try:
             return dict(sql.fetchone(), purchase_allowance='50$ a month')
         except TypeError:
-            raise AssertionError("user with {} {} does not exists".format(*condition))
+            raise UserNotFound("user with {} {} does not exists".format(*condition))
 
 
 def set_internal_user_info(pubkey, **kwargs):
@@ -100,8 +104,11 @@ def set_internal_user_info(pubkey, **kwargs):
             sql.execute("INSERT INTO internal_user_infos (pubkey) VALUES (?)", (pubkey,))
         except sqlite3.IntegrityError:
             pass
-        for key, value in kwargs.items():
-            sql.execute("UPDATE internal_user_infos SET {} = ? WHERE pubkey = ?".format(key), (value, pubkey))
+        try:
+            for key, value in kwargs.items():
+                sql.execute("UPDATE internal_user_infos SET {} = ? WHERE pubkey = ?".format(key), (value, pubkey))
+        except sqlite3.IntegrityError:
+            raise AssertionError("{} = {} is not a valid user detail".format(key, value))
 
 
 def get_user_infos(pubkey):
@@ -111,7 +118,10 @@ def get_user_infos(pubkey):
             SELECT * FROM users
             LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey
             WHERE users.pubkey = ?""", (pubkey,))
-        return dict(sql.fetchone())
+        try:
+            return dict(sql.fetchone())
+        except TypeError:
+            raise UserNotFound("user with pubkey {} does not exists".format(pubkey))
 
 
 def get_users():
@@ -130,7 +140,7 @@ def update_test(test_name, pubkey, result=None):
             sql.execute("INSERT INTO test_results (test_name, pubkey, result) VALUES (?, ?, ?)", (
                 test_name, pubkey, result))
         except sqlite3.IntegrityError:
-            raise AssertionError("no user with pubkey {}".format(pubkey))
+            raise UserNotFound("no user with pubkey {}".format(pubkey))
 
 
 def get_test_result(test_name, pubkey):

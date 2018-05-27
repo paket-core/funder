@@ -44,5 +44,21 @@ def get_user_handler(pubkey=None, call_sign=None):
     """
     try:
         return {'status': 200, 'user': db.get_user(pubkey=pubkey, call_sign=call_sign)}
+    except db.UserNotFound as exception:
+        return {'status': 404, 'error': str(exception)}
+
+
+@BLUEPRINT.route("/v{}/user_infos".format(VERSION), methods=['POST'])
+@flasgger.swag_from(swagger_specs.USER_INFOS)
+@webserver.validation.call(require_auth=True)
+def user_infos_handler(user_pubkey, **kwargs):
+    """
+    Set user details.
+    """
+    try:
+        db.set_internal_user_info(user_pubkey, **kwargs)
+        return {'status': 200, 'user_details': db.get_user_infos(user_pubkey)}
     except AssertionError as exception:
+        return {'status': 400, 'error': str(exception)}
+    except db.UserNotFound as exception:
         return {'status': 404, 'error': str(exception)}
