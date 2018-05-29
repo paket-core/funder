@@ -2,14 +2,14 @@
 import json
 import requests
 
-import logger
+import util.logger
 
 HOST = 'https://sandbox.identitymind.com'
 USER = 'paket'
 PASS = 'XXX'
-LOGGER = logger.logging.getLogger('pkt.funder.identitymind')
+LOGGER = util.logger.logging.getLogger('pkt.funder.identitymind')
 
-logger.setup()
+util.logger.setup()
 
 
 def call(method, endpoint, host, user, password, **kwargs):

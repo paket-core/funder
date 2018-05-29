@@ -1,5 +1,5 @@
-../logger
 ../py-stellar-base
+../util
 ../webserver
 fuzzywuzzy==0.16.0
 python-Levenshtein==0.12.0

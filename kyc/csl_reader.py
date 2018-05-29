@@ -14,13 +14,16 @@ import time
 import fuzzywuzzy.fuzz
 import requests
 
-import logger
-import util
+import util.logger
+import util.countly
 
-logger.setup()
+util.logger.setup()
 
 
 class CSLListChecker:
+    """
+    List checker.
+    """
     all_rows = []
     filename = "CSL.CSV"
     url = 'https://api.trade.gov/consolidated_screening_list/search.csv?api_key=OHZYuksFHSFao8jDXTkfiypO'
@@ -32,9 +35,7 @@ class CSLListChecker:
     @classmethod
     def download_file(cls):
         """
-        Download csv locally 
-        only if the local file is old
-
+        Download csv locally only if the local file is old
         """
         try:
             creation_hours_ago = int(time.time() - os.path.getmtime(cls.filename)) / 3600
@@ -45,19 +46,22 @@ class CSLListChecker:
         except FileNotFoundError:
             print("Local file '%s' not found" % cls.filename)
 
+        # pylint: disable=broad-except
+        # Still testing.
         try:
-            util.send_countly_event('download csl', 0)
+            util.countly.send_countly_event('download csl', 0)
             response = requests.get(cls.url)
             # Throw an error for bad status codes
             response.raise_for_status()
             with open(cls.filename, 'wb') as handle:
                 for block in response.iter_content(1024):
                     handle.write(block)
-            util.send_countly_event('download csl', 1, end_session=1)
-        except Exception as e:
-            print("error loading %s, error: %s" % (cls.url, e))
+            util.countly.send_countly_event('download csl', 1, end_session=1)
+        except Exception as exception:
+            print("error loading %s, error: %s" % (cls.url, exception))
 
         print(open(cls.filename, 'r'))
+        # pylint: enable=broad-except
 
     @classmethod
     def load_file(cls):
@@ -97,11 +101,11 @@ class CSLListChecker:
                 programs = str(row['programs'])
         final_score = top_score ** 2
         if final_score > .95:
-            util.send_countly_event('KYC_verify', 1, programs=programs, result='flagged')
+            util.countly.send_countly_event('KYC_verify', 1, programs=programs, result='flagged')
         elif final_score > .85:
-            util.send_countly_event('KYC_verify', 1, programs=programs, result='suspicious')
+            util.countly.send_countly_event('KYC_verify', 1, programs=programs, result='suspicious')
         else:
-            util.send_countly_event('KYC_verify', 1, result='pass', hour=17)
+            util.countly.send_countly_event('KYC_verify', 1, result='pass', hour=17)
         return final_score, comment
 
 
@@ -110,29 +114,28 @@ if __name__ == '__main__':
     temp testing
     """
 
-    csl = CSLListChecker()
+    CSL = CSLListChecker()
     NAMES = [
-                "oren", " Oren ", "oren Gampel",
-                "osama", "usama", "bin laden, Usama", "bin laden, osama", "usama bin laden",
-                "osama Tallal",
-                "israel levin",
-                "nationality",
-                "KISHK egypt",
-                "Ori Levi",
-                "Babbar Khalsa",
-                "Jose Maria", "Jose naria", "Jose Maria, SySOm", "sison, Jose Maria", "sisson, Jose Maria",
-                "ANAYA MARTINEZ",
-                "MAZIOTIS, Nikos",
-                "TIERRA",
-                "ABU FATIMA", "AHMED THE EGYPTIAN",
-                "ABDUL CHAUDHRY",
-                "Ibrahim Issa Haji",
-                "RICARDO PEREZ",
-                "ABDUL GHANI",
-                "AKHUNDZADA EHSANULLAH", "MULLAH GUL AGHA",
-                "vekselberg Victor"
-             ]
+        "oren", " Oren ", "oren Gampel",
+        "osama", "usama", "bin laden, Usama", "bin laden, osama", "usama bin laden",
+        "osama Tallal",
+        "israel levin",
+        "nationality",
+        "KISHK egypt",
+        "Ori Levi",
+        "Babbar Khalsa",
+        "Jose Maria", "Jose naria", "Jose Maria, SySOm", "sison, Jose Maria", "sisson, Jose Maria",
+        "ANAYA MARTINEZ",
+        "MAZIOTIS, Nikos",
+        "TIERRA",
+        "ABU FATIMA", "AHMED THE EGYPTIAN",
+        "ABDUL CHAUDHRY",
+        "Ibrahim Issa Haji",
+        "RICARDO PEREZ",
+        "ABDUL GHANI",
+        "AKHUNDZADA EHSANULLAH", "MULLAH GUL AGHA",
+        "vekselberg Victor"]
 
     for n in NAMES:
-        score = csl.score_name(n)
+        score = CSL.score_name(n)
         print("n: %s   s:%.2f [%s]" % (n, score[0], score[1]))

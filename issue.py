@@ -8,11 +8,11 @@ import stellar_base.asset
 import stellar_base.builder
 import stellar_base.keypair
 
-import logger
+import util.logger
 
 DEBUG = True
 
-logger.setup()
+util.logger.setup()
 LOGGER = logger.logging.getLogger('pkt.issue')
 
 

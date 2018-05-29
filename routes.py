@@ -2,14 +2,14 @@
 import flasgger
 import flask
 
-import logger
+import util.logger
 import webserver.validation
 
 import db
 import swagger_specs
 
-logger.setup()
-LOGGER = logger.logging.getLogger('pkt.funding.routes')
+util.logger.setup()
+LOGGER = util.logger.logging.getLogger('pkt.funding.routes')
 
 VERSION = swagger_specs.CONFIG['info']['version']
 BLUEPRINT = flask.Blueprint('funding', __name__)
