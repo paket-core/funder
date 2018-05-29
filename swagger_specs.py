@@ -111,3 +111,5 @@ PURCHASE_BUL = {
     'responses': {
         '201': {'description': 'payment address generated'},
         '403': {'description': 'user not authorized'}}}
+
+USERS = {'tags': ['debug'], 'responses': {'200': {'description': 'dict of users'}}}

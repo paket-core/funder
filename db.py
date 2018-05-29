@@ -2,6 +2,7 @@
 import contextlib
 import logging
 import sqlite3
+import time
 
 LOGGER = logging.getLogger('pkt.funder.db')
 DB_NAME = 'funder.db'
@@ -67,10 +68,17 @@ def init_db():
         sql.execute('''
             CREATE TABLE test_results(
                 pubkey VARCHAR(42) NOT NULL,
-                test_name VARCHAR(64) NOT NULL,
+                name VARCHAR(64) NOT NULL,
                 result INTEGER,
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('test_results table created')
+        sql.execute('''
+            CREATE TABLE purchases(
+                timestamp INTEGER NOT NULL,
+                pubkey VARCHAR(42) NOT NULL,
+                amount_euro_cents INTEGER NOT NULL,
+                FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
+        LOGGER.debug('purchases table created')
 
 
 def create_user(pubkey, call_sign):
@@ -91,7 +99,7 @@ def get_user(pubkey=None, call_sign=None):
     with sql_connection() as sql:
         sql.execute("SELECT * FROM users WHERE {} = ?".format(condition[0]), (condition[1],))
         try:
-            return dict(sql.fetchone(), purchase_allowance='50$ a month')
+            return dict(sql.fetchone())
         except TypeError:
             raise UserNotFound("user with {} {} does not exists".format(*condition))
 
@@ -124,32 +132,52 @@ def get_user_infos(pubkey):
             raise UserNotFound("user with pubkey {} does not exists".format(pubkey))
 
 
-def get_users():
-    """Get list of users and their details - for debug only."""
-    with sql_connection() as sql:
-        sql.execute('''
-            SELECT * FROM users
-            LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey''')
-        return {user['pubkey']: dict(user) for user in sql.fetchall()}
-
-
 def update_test(test_name, pubkey, result=None):
     """Update a test for a user."""
     with sql_connection() as sql:
         try:
-            sql.execute("INSERT INTO test_results (test_name, pubkey, result) VALUES (?, ?, ?)", (
+            sql.execute("INSERT INTO test_results (name, pubkey, result) VALUES (?, ?, ?)", (
                 test_name, pubkey, result))
         except sqlite3.IntegrityError:
             raise UserNotFound("no user with pubkey {}".format(pubkey))
 
 
-def get_test_result(test_name, pubkey):
+def get_test_result(pubkey, test_name):
     """Get the latest result of a test."""
-    get_user(pubkey)
     with sql_connection() as sql:
-        sql.execute("SELECT result FROM test_results WHERE test_name = ? AND pubkey = ? ORDER BY idx DESC LIMIT 1", (
-            test_name, pubkey))
+        sql.execute("SELECT result FROM test_results WHERE pubkey = ? AND name = ? GROUP BY pubkey", (
+            pubkey, test_name))
         try:
             return sql.fetchone()[0]
         except TypeError:
-            return None
+            return 0
+
+
+def get_monthly_allowance(pubkey):
+    """Get a user's monthly allowance."""
+    return 50 if get_test_result(pubkey, 'basic') > 0 else 0
+
+
+def get_monthly_expanses(pubkey):
+    """Get a user's expanses in the last month."""
+    with sql_connection() as sql:
+        sql.execute("SELECT SUM(amount_euro_cents) FROM purchases WHERE pubkey = ? AND timestamp > ?", (
+            pubkey, time.time() - (30 * 24 * 60 * 60)))
+        try:
+            return sql.fetchone()[0] or 0
+        except TypeError:
+            return 0
+
+
+def get_users():
+    """Get list of users and their details - for debug only."""
+    with sql_connection() as sql:
+        sql.execute('''
+            SELECT * FROM users
+            LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey
+            LEFT JOIN test_results on users.pubkey = test_results.pubkey''')
+        return {user['pubkey']: dict(
+            user,
+            monthly_allowance=get_monthly_allowance(user['pubkey']),
+            monthly_expanses=get_monthly_expanses(user['pubkey'])
+        ) for user in sql.fetchall()}

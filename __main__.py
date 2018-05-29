@@ -3,6 +3,7 @@ import sys
 import os.path
 
 import webserver
+import funder.routes
 
 # Python imports are silly.
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -15,4 +16,4 @@ if len(sys.argv) == 2:
 else:
     FUNDER_PORT = os.environ.get('PAKET_FUNDER_PORT', 5000)
 
-webserver.run(funder.BLUEPRINT, funder.swagger_specs.CONFIG, FUNDER_PORT)
+webserver.run(funder.routes.BLUEPRINT, funder.swagger_specs.CONFIG, FUNDER_PORT)
