@@ -4,4 +4,5 @@
 *.py[cod]
 .idea
 __pycache__/
+CSL.CSV
 venv
