@@ -95,7 +95,7 @@ PURCHASE_XLM = {
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'amount_xlms', 'in': 'formData', 'type': 'integer', 'required': True},
+        {'name': 'euro_cents', 'in': 'formData', 'type': 'integer', 'required': True},
         {'name': 'payment_currency', 'in': 'formData', 'type': 'string', 'required': True}],
     'responses': {
         '201': {'description': 'payment address generated'},
@@ -106,7 +106,7 @@ PURCHASE_BUL = {
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'amount_buls', 'in': 'formData', 'type': 'integer', 'required': True},
+        {'name': 'euro_cents', 'in': 'formData', 'type': 'integer', 'required': True},
         {'name': 'payment_currency', 'in': 'formData', 'type': 'string', 'required': True}],
     'responses': {
         '201': {'description': 'payment address generated'},

@@ -67,48 +67,29 @@ def create_stellar_account_handler(user_pubkey, payment_currency):
     Request the creation of a Stellar account.
     Returns an address to send ETH or BTC to.
     """
-    LOGGER.warning("not really generating a %s address to open account for %s", payment_currency, user_pubkey)
-    if db.get_user(user_pubkey)['monthly_purchase_allowance'] > 10:
-        pass
-    if payment_currency == 'BTC':
-        return {'status': 201, 'btc_address': 'btc address'}
-    if payment_currency == 'ETH':
-        return {'status': 201, 'eth_address': 'eth address'}
-    return {'status': 400, 'error': 'payment_currency must be BTC or ETH'}
+    return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, 500, payment_currency)}
 
 
 @BLUEPRINT.route("/v{}/purchase_xlm".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.PURCHASE_XLM)
-@webserver.validation.call(['amount_xlms', 'payment_currency'], require_auth=True)
-def purchase_xlm_handler(user_pubkey, amount_xlms, payment_currency):
+@webserver.validation.call(['euro_cents', 'payment_currency'], require_auth=True)
+def purchase_xlm_handler(user_pubkey, euro_cents, payment_currency):
     """
     Request the purchase of Stellar lumens.
     Returns an address to send ETH or BTC to.
     """
-    LOGGER.warning(
-        "not really generating a %s address to buy %s XLM for %s", payment_currency, amount_xlms, user_pubkey)
-    if payment_currency == 'BTC':
-        return {'status': 201, 'btc_address': 'btc address'}
-    if payment_currency == 'ETH':
-        return {'status': 201, 'eth_address': 'eth address'}
-    return {'status': 400, 'error': 'payment_currency must be BTC or ETH'}
+    return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, euro_cents, payment_currency)}
 
 
 @BLUEPRINT.route("/v{}/purchase_bul".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.PURCHASE_BUL)
-@webserver.validation.call(['amount_buls', 'payment_currency'], require_auth=True)
-def purchase_bul_handler(user_pubkey, amount_buls, payment_currency):
+@webserver.validation.call(['euro_cents', 'payment_currency'], require_auth=True)
+def purchase_bul_handler(user_pubkey, euro_cents, payment_currency):
     """
     Request the purchase of Stellar lumens.
     Returns an address to send ETH or BTC to.
     """
-    LOGGER.warning(
-        "not really generating a %s address to buy %s BUL for %s", payment_currency, amount_buls, user_pubkey)
-    if payment_currency == 'BTC':
-        return {'status': 201, 'btc_address': 'btc address'}
-    if payment_currency == 'ETH':
-        return {'status': 201, 'eth_address': 'eth address'}
-    return {'status': 400, 'error': 'payment_currency must be BTC or ETH'}
+    return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, euro_cents, payment_currency)}
 
 
 @BLUEPRINT.route("/v{}/debug/users".format(VERSION), methods=['GET'])
