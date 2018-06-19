@@ -1,14 +1,14 @@
 """PaKeT database interface."""
 import logging
-import sqlite3
 import time
 
 import pywallet.wallet
 
 import util.db
 
+DB_NAME = 'paket'
+SQL_CONNECTION = util.db.custom_sql_connection(host='localhost', port=3306, db_name=DB_NAME)
 LOGGER = logging.getLogger('pkt.funder.db')
-DB_NAME = 'funder.db'
 SEED = ('client ancient calm uncover opinion coil priority misery empty favorite moment myth')
 XPUB = 'xpub69Jm1CxJ8kdGZuqy3mkoKekzN1h4KNKUJiTsUQ9Hc1do6Rs5BEEFi2VYJJGSWVpURv4Nq3g4C3JTsxPUzEk9EVcTGuE2VuyhW7KpmsDe4bJ'
 
@@ -19,11 +19,12 @@ class UserNotFound(Exception):
 
 def get_table_columns(table_name):
     """Get the fields of a specific table."""
-    with util.db.sql_connection(DB_NAME) as sql:
-        sql.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", (table_name,))
+    with SQL_CONNECTION() as sql:
+        sql.execute("SELECT table_name FROM information_schema.tables where table_name = %s", (table_name,))
         assert sql.fetchone(), "table {} does not exist".format(table_name)
-        sql.execute("SELECT * FROM {} LIMIT 1".format(table_name))
-        return [column[0] for column in sql.description]
+        sql.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s",
+                    (DB_NAME, table_name))
+        return [column['COLUMN_NAME'] for column in sql.fetchall()]
 
 
 def verify_columns(table_name, accessed_columns):
@@ -35,20 +36,20 @@ def verify_columns(table_name, accessed_columns):
 
 def init_db():
     """Initialize the database."""
-    with util.db.sql_connection(DB_NAME) as sql:
+    with SQL_CONNECTION() as sql:
         # Not using IF EXISTS here in case we want different handling.
-        sql.execute('SELECT name FROM sqlite_master WHERE type = "table" AND name = "users"')
+        sql.execute("SELECT table_name FROM information_schema.tables where table_name = 'users'")
         if len(sql.fetchall()) == 1:
-            LOGGER.debug('database already exists')
+            LOGGER.debug('table already exists')
             return
         sql.execute('''
             CREATE TABLE users(
-                pubkey VARCHAR(42) PRIMARY KEY,
+                pubkey VARCHAR(56) PRIMARY KEY,
                 call_sign VARCHAR(32) UNIQUE NOT NULL)''')
         LOGGER.debug('users table created')
         sql.execute('''
             CREATE TABLE internal_user_infos(
-                pubkey VARCHAR(42) PRIMARY KEY,
+                pubkey VARCHAR(56) PRIMARY KEY,
                 full_name VARCHAR(256),
                 phone_number VARCHAR(32),
                 address VARCHAR(1024),
@@ -56,16 +57,16 @@ def init_db():
         LOGGER.debug('internal_user_infos table populated')
         sql.execute('''
             CREATE TABLE test_results(
-                pubkey VARCHAR(42) NOT NULL,
+                pubkey VARCHAR(56) NOT NULL,
                 name VARCHAR(64) NOT NULL,
                 result INTEGER,
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('test_results table created')
         sql.execute('''
             CREATE TABLE purchases(
-                timestamp INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                user_pubkey VARCHAR(42) NOT NULL,
-                payment_pubkey VARCHAR(42) NOT NULL,
+                timestamp INTEGER NOT NULL DEFAULT 0,
+                user_pubkey VARCHAR(56) NOT NULL,
+                payment_pubkey VARCHAR(56) NOT NULL,
                 payment_currency VARCHAR(3) NOT NULL,
                 euro_cents INTEGER NOT NULL,
                 paid INTEGER DEFAULT 0,
@@ -75,10 +76,10 @@ def init_db():
 
 def create_user(pubkey, call_sign):
     """Create a new user."""
-    with util.db.sql_connection(DB_NAME) as sql:
+    with SQL_CONNECTION() as sql:
         try:
-            sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (?, ?)", (pubkey, call_sign))
-        except sqlite3.IntegrityError as exception:
+            sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (%s, %s)", (pubkey, call_sign))
+        except util.db.mysql.connector.IntegrityError as exception:
             bad_column_name = str(exception).split('.')[-1]
             bad_value = locals().get(bad_column_name)
             raise AssertionError("{} {} is non unique".format(bad_column_name, bad_value))
@@ -88,28 +89,28 @@ def get_user(pubkey=None, call_sign=None):
     """Get user pubkey, call_sign, and purchase allowance from either pubkey or call_sign."""
     assert bool(pubkey or call_sign) != bool(pubkey and call_sign), 'specify either pubkey or call_sign'
     condition = ('pubkey', pubkey) if pubkey else ('call_sign', call_sign)
-    with util.db.sql_connection(DB_NAME) as sql:
-        sql.execute("SELECT * FROM users WHERE {} = ?".format(condition[0]), (condition[1],))
+    with SQL_CONNECTION() as sql:
+        sql.execute("SELECT * FROM users WHERE {} = %s".format(condition[0]), (condition[1], ))
         try:
-            return dict(sql.fetchone())
+            return sql.fetchone()
         except TypeError:
             raise UserNotFound("user with {} {} does not exists".format(*condition))
 
 
 def update_test(pubkey, test_name, result=None):
     """Update a test for a user."""
-    with util.db.sql_connection(DB_NAME) as sql:
+    with SQL_CONNECTION() as sql:
         try:
-            sql.execute("INSERT INTO test_results (pubkey, name, result) VALUES (?, ?, ?)", (
+            sql.execute("INSERT INTO test_results (pubkey, name, result) VALUES (%s, %s, %s)", (
                 pubkey, test_name, result))
-        except sqlite3.IntegrityError:
+        except util.db.mysql.connector.IntegrityError:
             raise UserNotFound("no user with pubkey {}".format(pubkey))
 
 
 def get_test_result(pubkey, test_name):
     """Get the latest result of a test."""
-    with util.db.sql_connection(DB_NAME) as sql:
-        sql.execute("SELECT result FROM test_results WHERE pubkey = ? AND name = ? GROUP BY pubkey", (
+    with SQL_CONNECTION() as sql:
+        sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s LIMIT 1", (
             pubkey, test_name))
         try:
             return sql.fetchone()['result']
@@ -120,29 +121,29 @@ def get_test_result(pubkey, test_name):
 def set_internal_user_info(pubkey, **kwargs):
     """Add or update optional details in local user info."""
     verify_columns('internal_user_infos', kwargs.keys())
-    with util.db.sql_connection(DB_NAME) as sql:
+    with SQL_CONNECTION() as sql:
         try:
-            sql.execute("INSERT INTO internal_user_infos (pubkey) VALUES (?)", (pubkey,))
-        except sqlite3.IntegrityError:
+            sql.execute("INSERT INTO internal_user_infos (pubkey) VALUES (%s)", (pubkey,))
+        except util.db.mysql.connector.IntegrityError:
             pass
         try:
             for key, value in kwargs.items():
-                sql.execute("UPDATE internal_user_infos SET {} = ? WHERE pubkey = ?".format(key), (value, pubkey))
-        except sqlite3.IntegrityError:
+                sql.execute("UPDATE internal_user_infos SET {} = %s WHERE pubkey = %s".format(key), (value, pubkey))
+        except util.db.mysql.connector.IntegrityError:
             raise AssertionError("{} = {} is not a valid user detail".format(key, value))
-    if 'address' in kwargs:
-        update_test(pubkey, 'basic', 1)
+    # if 'address' in kwargs:
+    #     update_test(pubkey, 'basic', 1)
 
 
 def get_user_infos(pubkey):
     """Get all user infos."""
-    with util.db.sql_connection(DB_NAME) as sql:
+    with SQL_CONNECTION() as sql:
         sql.execute("""
             SELECT * FROM users
             LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey
-            WHERE users.pubkey = ?""", (pubkey,))
+            WHERE users.pubkey = %s""", (pubkey,))
         try:
-            return dict(sql.fetchone())
+            return sql.fetchone()
         except TypeError:
             raise UserNotFound("user with pubkey {} does not exists".format(pubkey))
 
@@ -154,10 +155,11 @@ def get_monthly_allowance(pubkey):
 
 def get_monthly_expanses(pubkey):
     """Get a user's expanses in the last month."""
-    with util.db.sql_connection(DB_NAME) as sql:
+    with SQL_CONNECTION() as sql:
         sql.execute("""
             SELECT SUM(euro_cents) FROM purchases
-            WHERE user_pubkey = ? AND timestamp > ? AND paid = 1""", (pubkey, time.time() - (30 * 24 * 60 * 60)))
+            WHERE user_pubkey = %s AND timestamp > %s AND paid = 1 LIMIT 1""",
+                    (pubkey, time.time() - (30 * 24 * 60 * 60)))
         try:
             return sql.fetchone()[0] or 0
         except TypeError:
@@ -166,7 +168,7 @@ def get_monthly_expanses(pubkey):
 
 def get_users():
     """Get list of users and their details - for debug only."""
-    with util.db.sql_connection(DB_NAME) as sql:
+    with SQL_CONNECTION() as sql:
         sql.execute('''
             SELECT * FROM users
             LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey
@@ -187,8 +189,8 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency):
             user_pubkey, remaining_monthly_allowance, euro_cents)
 
     payment_pubkey = pywallet.wallet.create_address(network=payment_currency, xpub=XPUB)['address']
-    with util.db.sql_connection(DB_NAME) as sql:
+    with SQL_CONNECTION() as sql:
         sql.execute(
-            "INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents) VALUES (?, ?, ?, ?)",
+            "INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents) VALUES (%s, %s, %s, %s)",
             (user_pubkey, payment_pubkey, payment_currency, euro_cents))
     return payment_pubkey
