@@ -68,6 +68,7 @@ def init_db():
                 user_pubkey VARCHAR(56) NOT NULL,
                 payment_pubkey VARCHAR(56) NOT NULL,
                 payment_currency VARCHAR(3) NOT NULL,
+                bought_currency VARCHAR(3) NOT NULL,
                 euro_cents INTEGER NOT NULL,
                 paid INTEGER DEFAULT 0,
                 FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
@@ -180,9 +181,10 @@ def get_users():
         ) for user in sql.fetchall()}
 
 
-def get_payment_address(user_pubkey, euro_cents, payment_currency):
+def get_payment_address(user_pubkey, euro_cents, payment_currency, bought_currency):
     """Get an address to pay for a purchase."""
     assert payment_currency in ['BTC', 'ETH'], 'payment_currency must be BTC or ETH'
+    assert bought_currency in ['BUL', 'XLM'], 'bought_currency must be BUL or XLM'
     remaining_monthly_allowance = get_monthly_allowance(user_pubkey) - get_monthly_expanses(user_pubkey)
     assert remaining_monthly_allowance >= euro_cents, \
         "{} is allowed to purchase up to {} euro-cents when {} are required".format(
@@ -191,6 +193,7 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency):
     payment_pubkey = pywallet.wallet.create_address(network=payment_currency, xpub=XPUB)['address']
     with SQL_CONNECTION() as sql:
         sql.execute(
-            "INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents) VALUES (%s, %s, %s, %s)",
-            (user_pubkey, payment_pubkey, payment_currency, euro_cents))
+            """INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents, bought_currency)
+            VALUES (%s, %s, %s, %s, %s)""",
+            (user_pubkey, payment_pubkey, payment_currency, euro_cents, bought_currency))
     return payment_pubkey
