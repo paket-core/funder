@@ -84,7 +84,7 @@ def init_db():
                 user_pubkey VARCHAR(56) NOT NULL,
                 payment_pubkey VARCHAR(56) NOT NULL,
                 payment_currency VARCHAR(3) NOT NULL,
-                bought_currency VARCHAR(3) NOT NULL,
+                requested_currency VARCHAR(3) NOT NULL DEFAULT 'BUL',
                 euro_cents INTEGER NOT NULL,
                 paid INTEGER DEFAULT 0,
                 FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
@@ -177,10 +177,10 @@ def get_monthly_expanses(pubkey):
     with SQL_CONNECTION() as sql:
         sql.execute("""
             SELECT SUM(euro_cents) FROM purchases
-            WHERE user_pubkey = %s AND timestamp > %s AND paid = 1 LIMIT 1""",
-                    (pubkey, time.time() - (30 * 24 * 60 * 60)))
+            WHERE user_pubkey = %s AND timestamp > %s AND paid > 0""", (
+                pubkey, time.time() - (30 * 24 * 60 * 60)))
         try:
-            return sql.fetchone()[0] or 0
+            return sql.fetchall()[0].items()[0] or 0
         except TypeError:
             return 0
 
@@ -199,10 +199,10 @@ def get_users():
         ) for user in sql.fetchall()}
 
 
-def get_payment_address(user_pubkey, euro_cents, payment_currency, bought_currency):
+def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_currency):
     """Get an address to pay for a purchase."""
     assert payment_currency in ['BTC', 'ETH'], 'payment_currency must be BTC or ETH'
-    assert bought_currency in ['BUL', 'XLM'], 'bought_currency must be BUL or XLM'
+    assert requested_currency in ['BUL', 'XLM'], 'requested_currency must be BUL or XLM'
     remaining_monthly_allowance = get_monthly_allowance(user_pubkey) - get_monthly_expanses(user_pubkey)
     assert remaining_monthly_allowance >= euro_cents, \
         "{} is allowed to purchase up to {} euro-cents when {} are required".format(
@@ -211,7 +211,7 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, bought_curren
     payment_pubkey = pywallet.wallet.create_address(network=payment_currency, xpub=XPUB)['address']
     with SQL_CONNECTION() as sql:
         sql.execute(
-            """INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents, bought_currency)
+            """INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency)
             VALUES (%s, %s, %s, %s, %s)""",
-            (user_pubkey, payment_pubkey, payment_currency, euro_cents, bought_currency))
+            (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency))
     return payment_pubkey
