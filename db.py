@@ -84,6 +84,7 @@ def init_db():
                 user_pubkey VARCHAR(56) NOT NULL,
                 payment_pubkey VARCHAR(56) NOT NULL,
                 payment_currency VARCHAR(3) NOT NULL,
+                requested_currency VARCHAR(3) NOT NULL DEFAULT 'BUL',
                 euro_cents INTEGER NOT NULL,
                 paid INTEGER DEFAULT 0,
                 FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
@@ -176,10 +177,10 @@ def get_monthly_expanses(pubkey):
     with SQL_CONNECTION() as sql:
         sql.execute("""
             SELECT SUM(euro_cents) FROM purchases
-            WHERE user_pubkey = %s AND timestamp > %s AND paid = 1 LIMIT 1""",
-                    (pubkey, time.time() - (30 * 24 * 60 * 60)))
+            WHERE user_pubkey = %s AND timestamp > %s AND paid > 0""", (
+                pubkey, time.time() - (30 * 24 * 60 * 60)))
         try:
-            return sql.fetchone()[0] or 0
+            return sql.fetchall()[0].items()[0] or 0
         except TypeError:
             return 0
 
