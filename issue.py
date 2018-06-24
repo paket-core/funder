@@ -13,7 +13,7 @@ import util.logger
 DEBUG = True
 
 util.logger.setup()
-LOGGER = logger.logging.getLogger('pkt.issue')
+LOGGER = util.logger.logging.getLogger('pkt.issue')
 
 
 def get_details(address):
@@ -57,7 +57,6 @@ if __name__ == '__main__':
     if DEBUG:
         HORIZON = 'https://horizon-testnet.stellar.org'
 
-
         def get_account(seed=None):
             """Get an account or create a new one."""
             keypair = stellar_base.keypair.Keypair.from_seed(
@@ -70,7 +69,6 @@ if __name__ == '__main__':
                 if request.status_code != 200:
                     LOGGER.error("Request to friendbot failed: %s", request.json())
             return keypair
-
 
         ISSUER = get_account(os.environ.get('ISSUER_SEED'))
         DISTRIBUTOR = get_account(os.environ.get('DISTRIBUTOR_SEED'))
