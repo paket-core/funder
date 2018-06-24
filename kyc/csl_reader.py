@@ -109,10 +109,8 @@ class CSLListChecker:
         return final_score, comment
 
 
+# Some temp tests.
 if __name__ == '__main__':
-    """
-    temp testing
-    """
 
     CSL = CSLListChecker()
     NAMES = [

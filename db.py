@@ -1,16 +1,21 @@
 """PaKeT database interface."""
 import logging
+import os
 import time
 
 import pywallet.wallet
 
 import util.db
 
-DB_NAME = 'paket'
-SQL_CONNECTION = util.db.custom_sql_connection(host='localhost', port=3306, db_name=DB_NAME)
 LOGGER = logging.getLogger('pkt.funder.db')
 SEED = ('client ancient calm uncover opinion coil priority misery empty favorite moment myth')
 XPUB = 'xpub69Jm1CxJ8kdGZuqy3mkoKekzN1h4KNKUJiTsUQ9Hc1do6Rs5BEEFi2VYJJGSWVpURv4Nq3g4C3JTsxPUzEk9EVcTGuE2VuyhW7KpmsDe4bJ'
+DB_HOST = os.environ.get('PAKET_DB_HOST', '127.0.0.1')
+DB_PORT = int(os.environ.get('PAKET_DB_PORT', 3306))
+DB_USER = os.environ.get('PAKET_DB_USER', 'root')
+DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
+DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
+SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
 
 
 class UserNotFound(Exception):
@@ -20,10 +25,13 @@ class UserNotFound(Exception):
 def get_table_columns(table_name):
     """Get the fields of a specific table."""
     with SQL_CONNECTION() as sql:
-        sql.execute("SELECT table_name FROM information_schema.tables where table_name = %s", (table_name,))
-        assert sql.fetchone(), "table {} does not exist".format(table_name)
-        sql.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s",
-                    (DB_NAME, table_name))
+        sql.execute("""
+            SELECT TABLE_NAME FROM information_schema.tables
+            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s""", (DB_NAME, table_name))
+        tables = sql.fetchall()
+        assert len(tables) == 1, "table {} does not exist".format(table_name)
+        sql.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s",
+                    (DB_NAME, tables[0]['TABLE_NAME']))
         return [column['COLUMN_NAME'] for column in sql.fetchall()]
 
 
@@ -32,6 +40,14 @@ def verify_columns(table_name, accessed_columns):
     nonexisting_columns = set(accessed_columns) - set(get_table_columns(table_name))
     if nonexisting_columns:
         raise AssertionError("users do not support the following fields: {}".format(nonexisting_columns))
+
+
+def clear_tables():
+    """Clear all tables in the database."""
+    with SQL_CONNECTION() as sql:
+        sql.execute("SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = %s", (DB_NAME,))
+        for table_name in [row['TABLE_NAME'] for row in sql.fetchall()]:
+            sql.execute("DELETE from {}".format(table_name))
 
 
 def init_db():
@@ -93,8 +109,10 @@ def get_user(pubkey=None, call_sign=None):
     with SQL_CONNECTION() as sql:
         sql.execute("SELECT * FROM users WHERE {} = %s".format(condition[0]), (condition[1], ))
         try:
-            return sql.fetchone()
-        except TypeError:
+            users = sql.fetchall()
+            assert len(users) == 1
+            return users[0]
+        except AssertionError:
             raise UserNotFound("user with {} {} does not exists".format(*condition))
 
 
@@ -132,8 +150,8 @@ def set_internal_user_info(pubkey, **kwargs):
                 sql.execute("UPDATE internal_user_infos SET {} = %s WHERE pubkey = %s".format(key), (value, pubkey))
         except util.db.mysql.connector.IntegrityError:
             raise AssertionError("{} = {} is not a valid user detail".format(key, value))
-    # if 'address' in kwargs:
-    #     update_test(pubkey, 'basic', 1)
+    if 'address' in kwargs:
+        update_test(pubkey, 'basic', 1)
 
 
 def get_user_infos(pubkey):
