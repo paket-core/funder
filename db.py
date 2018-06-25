@@ -16,6 +16,8 @@ DB_USER = os.environ.get('PAKET_DB_USER', 'root')
 DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
+MINIMUM_MONTHLY_ALLOWANCE = 5000
+MAXIMUM_MONTHLY_ALLOWANCE = 10000
 
 
 class UserNotFound(Exception):
@@ -169,7 +171,7 @@ def get_user_infos(pubkey):
 
 def get_monthly_allowance(pubkey):
     """Get a user's monthly allowance."""
-    return 500 if get_test_result(pubkey, 'basic') > 0 else 0
+    return MAXIMUM_MONTHLY_ALLOWANCE if get_test_result(pubkey, 'basic') > 0 else 0
 
 
 def get_monthly_expanses(pubkey):
