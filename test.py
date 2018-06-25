@@ -135,7 +135,7 @@ class RoutinesTest(unittest.TestCase):
         routines.check_purchases_addresses()
         # TODO: add checks for result
 
-    def send_requested_currency(self):
+    def test_send_requested_currency(self):
         """Test for send_requested_currency"""
         routines.send_requested_currency()
         # TODO: add checks for result
