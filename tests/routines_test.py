@@ -1,64 +1,8 @@
-"""Test Funder."""
+"""Tests for routines module"""
 import unittest
-
-import util.logger
 
 import db
 import routines
-
-LOGGER = util.logger.logging.getLogger('pkt.funder.test')
-util.logger.setup()
-
-
-class DBTest(unittest.TestCase):
-    """Testing the database module."""
-
-    def setUp(self):
-        assert db.DB_NAME.startswith('test'), "refusing to test on db named {}".format(db.DB_NAME)
-        LOGGER.info('clearing database')
-        db.clear_tables()
-
-    def test_get_user_args(self):
-        """Test get_user arguments logic."""
-        with self.assertRaises(AssertionError) as exception_context:
-            db.get_user()
-        self.assertEqual(
-            str(exception_context.exception), 'specify either pubkey or call_sign',
-            'called get_user with no arguments')
-        with self.assertRaises(AssertionError) as exception_context:
-            db.get_user('foo', 'bar')
-        self.assertEqual(
-            str(exception_context.exception), 'specify either pubkey or call_sign',
-            'called get_user with two arguments')
-
-    def internal_test_nonexistent(self, pubkey):
-        """Test a non existing user."""
-        with self.assertRaises(db.UserNotFound) as exception_context:
-            db.get_user(pubkey)
-        self.assertEqual(
-            str(exception_context.exception), "user with pubkey {} does not exists".format(pubkey),
-            'called get_user with nonexisting user')
-
-    def internal_test_create_user(self, pubkey, call_sign):
-        """Test creating a user."""
-        self.internal_test_nonexistent(pubkey)
-        db.create_user(pubkey, call_sign)
-        user = db.get_user(pubkey=pubkey)
-        self.assertEqual(user['call_sign'], call_sign)
-        user = db.get_user(call_sign=call_sign)
-        self.assertEqual(user['pubkey'], pubkey)
-
-    def test_internal_user_info(self):
-        """Test adding, modifying, and reading internal user info."""
-        pubkey, call_sign = 'pubkey', 'call_sign'
-        phone_number, address = '1234', 'asdf'
-        self.internal_test_create_user(pubkey, call_sign)
-        db.set_internal_user_info(pubkey, phone_number=phone_number)
-        self.assertEqual(db.get_user_infos(pubkey)['phone_number'], phone_number)
-        phone_number = phone_number[::-1]
-        db.set_internal_user_info(pubkey, phone_number=phone_number, address=address)
-        self.assertEqual(db.get_user_infos(pubkey)['phone_number'], phone_number)
-        self.assertEqual(db.get_user_infos(pubkey)['address'], address)
 
 
 class RoutinesTest(unittest.TestCase):
@@ -155,12 +99,9 @@ class BalanceTest(unittest.TestCase):
 
     def test_eth_address(self):
         """Test balance with valid ETH address"""
-        routines.get_eth_balance('17kHGHDgE7q2JDkZjbDHagkKMreyo9XwRS')
+        routines.get_eth_balance('0xce85247b032f7528ba97396f7b17c76d5d034d2f')
 
     def test_invalid_eth_address(self):
         """Test balance with invalid ETH address"""
-        routines.get_eth_balance('invalid_address')
-
-
-if __name__ == '__main__':
-    unittest.main()
+        with self.assertRaises(routines.BalanceError):
+            routines.get_eth_balance('invalid_address')
