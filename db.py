@@ -152,8 +152,14 @@ def set_internal_user_info(pubkey, **kwargs):
                 sql.execute("UPDATE internal_user_infos SET {} = %s WHERE pubkey = %s".format(key), (value, pubkey))
         except util.db.mysql.connector.IntegrityError:
             raise AssertionError("{} = {} is not a valid user detail".format(key, value))
-    if 'address' in kwargs:
+    if user_set_all_info(pubkey):
         update_test(pubkey, 'basic', 1)
+
+
+def user_set_all_info(pubkey):
+    """Shows if user set all information about himself"""
+    user = get_user(pubkey)
+    return user['full_name'] is not None and user['phone_number'] is not None and user['address'] is not None
 
 
 def get_user_infos(pubkey):
