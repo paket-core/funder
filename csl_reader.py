@@ -107,33 +107,3 @@ class CSLListChecker:
         else:
             util.countly.send_countly_event('KYC_verify', 1, result='pass', hour=17)
         return final_score, comment
-
-
-# Some temp tests.
-if __name__ == '__main__':
-
-    CSL = CSLListChecker()
-    NAMES = [
-        "oren", " Oren ", "oren Gampel",
-        "osama", "usama", "bin laden, Usama", "bin laden, osama", "usama bin laden",
-        "osama Tallal",
-        "israel levin",
-        "nationality",
-        "KISHK egypt",
-        "Ori Levi",
-        "Babbar Khalsa",
-        "Jose Maria", "Jose naria", "Jose Maria, SySOm", "sison, Jose Maria", "sisson, Jose Maria",
-        "ANAYA MARTINEZ",
-        "MAZIOTIS, Nikos",
-        "TIERRA",
-        "ABU FATIMA", "AHMED THE EGYPTIAN",
-        "ABDUL CHAUDHRY",
-        "Ibrahim Issa Haji",
-        "RICARDO PEREZ",
-        "ABDUL GHANI",
-        "AKHUNDZADA EHSANULLAH", "MULLAH GUL AGHA",
-        "vekselberg Victor"]
-
-    for n in NAMES:
-        score = CSL.score_name(n)
-        print("n: %s   s:%.2f [%s]" % (n, score[0], score[1]))
