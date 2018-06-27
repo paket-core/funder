@@ -18,6 +18,7 @@ import util.logger
 import util.countly
 
 util.logger.setup()
+LOGGER = util.logger.logging.getLogger('pkt.funder.csl')
 
 
 class CSLListChecker:
@@ -39,12 +40,12 @@ class CSLListChecker:
         """
         try:
             creation_hours_ago = int(time.time() - os.path.getmtime(cls.filename)) / 3600
-            print("current file is from %d hours ago" % creation_hours_ago)
+            LOGGER.info("current file is from %d hours ago", creation_hours_ago)
             if creation_hours_ago < 24:
-                print("no need to load new version")
+                LOGGER.info("no need to load new version")
                 return
         except FileNotFoundError:
-            print("Local file '%s' not found" % cls.filename)
+            LOGGER.info("Local file '%s' not found", cls.filename)
 
         # pylint: disable=broad-except
         # Still testing.
@@ -58,9 +59,9 @@ class CSLListChecker:
                     handle.write(block)
             util.countly.send_countly_event('download csl', 1, end_session=1)
         except Exception as exception:
-            print("error loading %s, error: %s" % (cls.url, exception))
+            LOGGER.warning("error loading %s, error: %s", (cls.url, exception))
 
-        print(open(cls.filename, 'r'))
+        LOGGER.info(open(cls.filename, 'r'))
         # pylint: enable=broad-except
 
     @classmethod
@@ -74,8 +75,8 @@ class CSLListChecker:
             for dict_row in reader:
                 if dict_row['type'] == "Individual":
                     cls.all_rows.append(dict_row)
-        print("loaded %d lines" % len(cls.all_rows))
-        print(cls.all_rows[1].keys())
+        LOGGER.info("loaded %d lines", len(cls.all_rows))
+        LOGGER.info(cls.all_rows[1].keys())
 
     @classmethod
     def score_name(cls, name):
