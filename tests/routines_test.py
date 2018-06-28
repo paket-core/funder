@@ -35,29 +35,29 @@ class RoutinesTest(unittest.TestCase):
         # TODO: change these addresses for 'inactive'
         with db.SQL_CONNECTION() as sql:
             sql.execute(
-                """INSERT INTO purchases (timestamp, user_pubkey, payment_pubkey,
+                """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
-                VALUES ('1529508977', 'GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ',
+                VALUES ('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ',
                 '1B8ipdHMD9bTucyhpYCEicMXBNP6MJKMMS', 'BTC', 'BUL', '600', '1')""")
             sql.execute(
-                """INSERT INTO purchases (timestamp, user_pubkey, payment_pubkey,
+                """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
-                VALUES ('1529572364', 'GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ',
+                VALUES ('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ',
                 '0x8AD9062288A4081BDBDB488DA0099B4E1D87DDF8', 'ETH', 'BUL', '500', '0')""")
             sql.execute(
-                """INSERT INTO purchases (timestamp, user_pubkey, payment_pubkey,
+                """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
-                VALUES ('1529043322', 'GBD5666CDBM6MS3RKXLO5WOXVJXECOCLBAE6B62XMNKZLF63GC6V3IB5',
+                VALUES ('GBD5666CDBM6MS3RKXLO5WOXVJXECOCLBAE6B62XMNKZLF63GC6V3IB5',
                 '0x8b9bb1e80a765553052e358452091cbe0ab9d114', 'ETH', 'BUL', '100', '0')""")
             sql.execute(
-                """INSERT INTO purchases (timestamp, user_pubkey, payment_pubkey,
+                """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
-                VALUES ('1529679314', 'GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR',
+                VALUES ('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR',
                 '0x580ce178db05e6826f9fdef8c8645e32b9865f0a', 'ETH', 'BUL', '1200', '0')""")
             sql.execute(
-                """INSERT INTO purchases (timestamp, user_pubkey, payment_pubkey,
+                """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
-                VALUES ('1529693109', 'GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR',
+                VALUES ('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR',
                 '17kHGHDgE7q2JDkZjbDHagkKMreyo9XwRS', 'BTC', 'XLM', '800', '0')""")
 
 
