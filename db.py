@@ -17,31 +17,11 @@ DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
 MINIMUM_MONTHLY_ALLOWANCE = 5000
-MAXIMUM_MONTHLY_ALLOWANCE = 10000
+BASIC_MONTHLY_ALLOWANCE = 10000
 
 
 class UserNotFound(Exception):
     """Requested user does not exist."""
-
-
-def get_table_columns(table_name):
-    """Get the fields of a specific table."""
-    with SQL_CONNECTION() as sql:
-        sql.execute("""
-            SELECT TABLE_NAME FROM information_schema.tables
-            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s""", (DB_NAME, table_name))
-        tables = sql.fetchall()
-        assert len(tables) == 1, "table {} does not exist".format(table_name)
-        sql.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s",
-                    (DB_NAME, tables[0]['TABLE_NAME']))
-        return [column['COLUMN_NAME'] for column in sql.fetchall()]
-
-
-def verify_columns(table_name, accessed_columns):
-    """Raise an exception if table_name does not contain all of accessed_columns."""
-    nonexisting_columns = set(accessed_columns) - set(get_table_columns(table_name))
-    if nonexisting_columns:
-        raise AssertionError("users do not support the following fields: {}".format(nonexisting_columns))
 
 
 def init_db():
@@ -54,22 +34,26 @@ def init_db():
         LOGGER.debug('users table created')
         sql.execute('''
             CREATE TABLE internal_user_infos(
-                pubkey VARCHAR(56) PRIMARY KEY,
+                timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                pubkey VARCHAR(56),
                 full_name VARCHAR(256),
                 phone_number VARCHAR(32),
                 address VARCHAR(1024),
+                PRIMARY KEY (timestamp, pubkey),
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('internal_user_infos table populated')
         sql.execute('''
             CREATE TABLE test_results(
+                timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                 pubkey VARCHAR(56) NOT NULL,
                 name VARCHAR(64) NOT NULL,
                 result INTEGER,
+                PRIMARY KEY (timestamp, pubkey),
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('test_results table created')
         sql.execute('''
             CREATE TABLE purchases(
-                timestamp INTEGER NOT NULL DEFAULT 0,
+                timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                 user_pubkey VARCHAR(56) NOT NULL,
                 payment_pubkey VARCHAR(56) NOT NULL,
                 payment_currency VARCHAR(3) NOT NULL,
@@ -121,50 +105,37 @@ def get_test_result(pubkey, test_name):
         sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s LIMIT 1", (
             pubkey, test_name))
         try:
-            return sql.fetchone()['result']
+            return sql.fetchall()[0]['result']
         except TypeError:
             return 0
 
 
 def set_internal_user_info(pubkey, **kwargs):
-    """Add or update optional details in local user info."""
-    verify_columns('internal_user_infos', kwargs.keys())
+    """Add optional details in local user info."""
+    kwargs['pubkey'] = pubkey
     with SQL_CONNECTION() as sql:
-        try:
-            sql.execute("INSERT INTO internal_user_infos (pubkey) VALUES (%s)", (pubkey,))
-        except util.db.mysql.connector.IntegrityError:
-            pass
-        try:
-            for key, value in kwargs.items():
-                sql.execute("UPDATE internal_user_infos SET {} = %s WHERE pubkey = %s".format(key), (value, pubkey))
-        except util.db.mysql.connector.IntegrityError:
-            raise AssertionError("{} = {} is not a valid user detail".format(key, value))
-    if user_set_all_info(pubkey):
+        print("INSERT INTO internal_user_infos ({}) VALUES ({})".format(
+            ', '.join(kwargs.keys()), ', '.join(['%s' for key in kwargs])), (kwargs.values()))
+        sql.execute("INSERT INTO internal_user_infos ({}) VALUES ({})".format(
+            ', '.join(kwargs.keys()), ', '.join(['%s' for key in kwargs])), (list(kwargs.values())))
+    if kwargs.get('full_name') and kwargs.get('phone_number') and kwargs.get('address'):
         update_test(pubkey, 'basic', 1)
-
-
-def user_set_all_info(pubkey):
-    """Shows if user set all information about himself"""
-    user = get_user(pubkey)
-    return user.get('full_name') and user.get('phone_number') and user.get('address')
 
 
 def get_user_infos(pubkey):
     """Get all user infos."""
     with SQL_CONNECTION() as sql:
-        sql.execute("""
-            SELECT * FROM users
-            LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey
-            WHERE users.pubkey = %s""", (pubkey,))
+        sql.execute(
+            "SELECT * FROM internal_user_infos WHERE pubkey = %s ORDER BY timestamp DESC LIMIT 1", (pubkey,))
         try:
-            return sql.fetchone()
-        except TypeError:
+            return sql.fetchall()[0]
+        except IndexError:
             raise UserNotFound("user with pubkey {} does not exists".format(pubkey))
 
 
 def get_monthly_allowance(pubkey):
     """Get a user's monthly allowance."""
-    return MAXIMUM_MONTHLY_ALLOWANCE if get_test_result(pubkey, 'basic') > 0 else 0
+    return BASIC_MONTHLY_ALLOWANCE if get_test_result(pubkey, 'basic') > 0 else 0
 
 
 def get_monthly_expanses(pubkey):
