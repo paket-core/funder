@@ -110,6 +110,19 @@ def get_test_result(pubkey, test_name):
             return 0
 
 
+def get_user_infos(pubkey):
+    """Get all user infos."""
+    with SQL_CONNECTION() as sql:
+        sql.execute(
+            "SELECT * FROM internal_user_infos WHERE pubkey = %s", (pubkey,))
+        try:
+            return {
+                key.decode('utf8') if isinstance(key, bytes) else key: val
+                for key, val in sql.fetchall()[0].items()}
+        except IndexError:
+            raise UserNotFound("user with pubkey {} does not exists".format(pubkey))
+
+
 def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
     kwargs['pubkey'] = pubkey
@@ -118,17 +131,7 @@ def set_internal_user_info(pubkey, **kwargs):
             ', '.join(kwargs.keys()), ', '.join(['%s' for key in kwargs])), (list(kwargs.values())))
     if kwargs.get('full_name') and kwargs.get('phone_number') and kwargs.get('address'):
         update_test(pubkey, 'basic', 1)
-
-
-def get_user_infos(pubkey):
-    """Get all user infos."""
-    with SQL_CONNECTION() as sql:
-        sql.execute(
-            "SELECT * FROM internal_user_infos WHERE pubkey = %s ORDER BY timestamp DESC LIMIT 1", (pubkey,))
-        try:
-            return sql.fetchall()[0]
-        except IndexError:
-            raise UserNotFound("user with pubkey {} does not exists".format(pubkey))
+    return get_user_infos(pubkey)
 
 
 def get_monthly_allowance(pubkey):
@@ -152,12 +155,9 @@ def get_monthly_expanses(pubkey):
 def get_users():
     """Get list of users and their details - for debug only."""
     with SQL_CONNECTION() as sql:
-        sql.execute('''
-            SELECT * FROM users
-            LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey
-            LEFT JOIN test_results on users.pubkey = test_results.pubkey''')
-        return {user['pubkey']: dict(
-            user,
+        sql.execute('SELECT * FROM users')
+        return {user['call_sign']: dict(
+            get_user_infos(user['pubkey']),
             monthly_allowance=get_monthly_allowance(user['pubkey']),
             monthly_expanses=get_monthly_expanses(user['pubkey'])
         ) for user in sql.fetchall()}
