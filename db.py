@@ -9,7 +9,7 @@ import util.db
 
 LOGGER = logging.getLogger('pkt.funder.db')
 SEED = ('client ancient calm uncover opinion coil priority misery empty favorite moment myth')
-XPUB = 'xpub69Jm1CxJ8kdGZuqy3mkoKekzN1h4KNKUJiTsUQ9Hc1do6Rs5BEEFi2VYJJGSWVpURv4Nq3g4C3JTsxPUzEk9EVcTGuE2VuyhW7KpmsDe4bJ'
+XPUB = 'tpubD6NzVbkrYhZ4XMSG7EWChwJXwfByid9TdZRVaej1rpDTHV3WamyuApceF5DDZXetx8kbH82NouoazYqPeCEZWWeXHZ1do5LBCe5xMcZYeGe'
 DB_HOST = os.environ.get('PAKET_DB_HOST', '127.0.0.1')
 DB_PORT = int(os.environ.get('PAKET_DB_PORT', 3306))
 DB_USER = os.environ.get('PAKET_DB_USER', 'root')
@@ -106,7 +106,7 @@ def get_test_result(pubkey, test_name):
             pubkey, test_name))
         try:
             return sql.fetchall()[0]['result']
-        except TypeError:
+        except IndexError:
             return 0
 
 
@@ -172,7 +172,7 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
         "{} is allowed to purchase up to {} euro-cents when {} are required".format(
             user_pubkey, remaining_monthly_allowance, euro_cents)
 
-    payment_pubkey = pywallet.wallet.create_address(network=payment_currency, xpub=XPUB)['address']
+    payment_pubkey = pywallet.wallet.create_address(network=payment_currency+'test', xpub=XPUB)['address']
     with SQL_CONNECTION() as sql:
         sql.execute(
             """INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency)
