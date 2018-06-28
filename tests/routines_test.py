@@ -8,19 +8,9 @@ import routines
 class RoutinesTest(unittest.TestCase):
     """Test for routines"""
 
-    @classmethod
-    def setUpClass(cls):
-        """Initialize db with tables and clear them if they exist."""
-        db.init_db()
-        db.clear_tables()
-
-    @classmethod
-    def tearDownClass(cls):
-        """Clear tables"""
-        db.clear_tables()
-
     def setUp(self):
         """Insert data into tables"""
+        db.util.db.clear_tables(db.SQL_CONNECTION, db.DB_NAME)
         db.create_user('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ', 'callsign1')
         db.create_user('GBLZA2SZ3XJLCFYKW7TF6Q7FAMA4WJUOZN6J6WM3Z676W3JOJDQ6CEKE', 'callsign2')
         db.create_user('GBD5666CDBM6MS3RKXLO5WOXVJXECOCLBAE6B62XMNKZLF63GC6V3IB5', 'callsign3')
@@ -70,9 +60,6 @@ class RoutinesTest(unittest.TestCase):
                 VALUES ('1529693109', 'GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR',
                 '17kHGHDgE7q2JDkZjbDHagkKMreyo9XwRS', 'BTC', 'XLM', '800', '0')""")
 
-    def tearDown(self):
-        """Clear tables"""
-        db.clear_tables()
 
     def test_check_purchases_addresses(self):
         """Test for check_purchases_addresses routine"""

@@ -15,7 +15,7 @@ class DBTest(unittest.TestCase):
     def setUp(self):
         assert db.DB_NAME.startswith('test'), "refusing to test on db named {}".format(db.DB_NAME)
         LOGGER.info('clearing database')
-        db.clear_tables()
+        db.util.db.clear_tables(db.SQL_CONNECTION, db.DB_NAME)
 
     def test_get_user_args(self):
         """Test get_user arguments logic."""

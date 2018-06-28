@@ -44,24 +44,9 @@ def verify_columns(table_name, accessed_columns):
         raise AssertionError("users do not support the following fields: {}".format(nonexisting_columns))
 
 
-def clear_tables():
-    """Clear all tables in the database."""
-    with SQL_CONNECTION() as sql:
-        sql.execute("SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = %s", (DB_NAME,))
-        for table_name in [row['TABLE_NAME'] for row in sql.fetchall()]:
-            sql.execute("DELETE from {}".format(table_name))
-
-
 def init_db():
     """Initialize the database."""
     with SQL_CONNECTION() as sql:
-        # Not using IF EXISTS here in case we want different handling.
-        sql.execute("""
-            SELECT table_name FROM information_schema.tables
-            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'users'""", (DB_NAME,))
-        if len(sql.fetchall()) == 1:
-            LOGGER.debug('table already exists')
-            return
         sql.execute('''
             CREATE TABLE users(
                 pubkey VARCHAR(56) PRIMARY KEY,
@@ -161,7 +146,7 @@ def set_internal_user_info(pubkey, **kwargs):
 def user_set_all_info(pubkey):
     """Shows if user set all information about himself"""
     user = get_user(pubkey)
-    return user['full_name'] is not None and user['phone_number'] is not None and user['address'] is not None
+    return user.get('full_name') and user.get('phone_number') and user.get('address')
 
 
 def get_user_infos(pubkey):
