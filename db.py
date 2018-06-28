@@ -114,8 +114,6 @@ def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
     kwargs['pubkey'] = pubkey
     with SQL_CONNECTION() as sql:
-        print("INSERT INTO internal_user_infos ({}) VALUES ({})".format(
-            ', '.join(kwargs.keys()), ', '.join(['%s' for key in kwargs])), (kwargs.values()))
         sql.execute("INSERT INTO internal_user_infos ({}) VALUES ({})".format(
             ', '.join(kwargs.keys()), ', '.join(['%s' for key in kwargs])), (list(kwargs.values())))
     if kwargs.get('full_name') and kwargs.get('phone_number') and kwargs.get('address'):
