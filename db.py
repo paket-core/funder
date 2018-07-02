@@ -103,7 +103,7 @@ def update_test(pubkey, test_name, result=None):
 def get_test_result(pubkey, test_name):
     """Get the latest result of a test."""
     with SQL_CONNECTION() as sql:
-        sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s LIMIT 1", (
+        sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s", (
             pubkey, test_name))
         try:
             return sql.fetchall()[0]['result']
