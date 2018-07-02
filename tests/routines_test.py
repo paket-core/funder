@@ -38,7 +38,7 @@ class RoutinesTest(unittest.TestCase):
                 """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
                 VALUES ('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ',
-                '1B8ipdHMD9bTucyhpYCEicMXBNP6MJKMMS', 'BTC', 'BUL', '600', '1')""")
+                '2N6WqqshyxoWuBGHLjbwnWAQSigJ4TJkYrt', 'BTC', 'BUL', '600', '1')""")
             sql.execute(
                 """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
@@ -58,7 +58,7 @@ class RoutinesTest(unittest.TestCase):
                 """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
                 VALUES ('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR',
-                '17kHGHDgE7q2JDkZjbDHagkKMreyo9XwRS', 'BTC', 'XLM', '800', '0')""")
+                '2NBMEXediyAYCGcVfW5W2toR5Kui1EpqaYB', 'BTC', 'XLM', '800', '0')""")
 
 
     def test_check_purchases_addresses(self):
@@ -77,7 +77,7 @@ class BalanceTest(unittest.TestCase):
 
     def test_btc_address(self):
         """Test balance with valid BTC address"""
-        routines.get_btc_balance('17kHGHDgE7q2JDkZjbDHagkKMreyo9XwRS')
+        routines.get_btc_balance('2N6WqqshyxoWuBGHLjbwnWAQSigJ4TJkYrt')
 
     def test_invalid_btc_address(self):
         """Test balance with invalid BTC address"""

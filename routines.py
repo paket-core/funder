@@ -7,9 +7,6 @@ import db
 
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.MODULENAME')
-# using USD now because price of EUR is unavailable
-EUR_ASSET_CODE = 'USD'
-EUR_ISSUER = 'GBUYUAI75XXWDZEKLY66CFYKQPET5JR4EENXZBUZ3YXZ7DS56Z4OKOFU'
 ETHERSCAN_API_KEY = '6KYNDD61K9YA9CX1NWUPVWCVFJN24K9QV5'
 # currencies ids on coinmarketcap.com
 XLM_ID = 512
@@ -28,14 +25,6 @@ def get_lumen_price(currency):
     url = 'https://bb.otcbtc.com/api/v2/tickers/xlm{}'.format(currency.lower())
     response = requests.get(url)
     price = float(response.json()['ticker']['buy']) * digits
-    return price
-
-
-def get_euro_asset_price():
-    """Get euro asset price in XLM"""
-    url = 'https://api.stellar.expert/api/explorer/public/asset/{}-{}'.format(EUR_ASSET_CODE, EUR_ISSUER)
-    response = requests.get(url)
-    price = response.json()['price_dynamic'][0][1]
     return price
 
 
