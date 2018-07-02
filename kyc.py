@@ -10,4 +10,3 @@ def basic_kyc(name, address, phone):
     phone_score = csl_list_checker.score_phone(phone)
     average = sum(name_score, address_score, phone_score) / 3
     return 0 if average > 0.85 else 1
-

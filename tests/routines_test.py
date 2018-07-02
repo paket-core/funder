@@ -1,8 +1,13 @@
 """Tests for routines module"""
 import unittest
 
+import util.logger
+
 import db
 import routines
+
+
+LOGGER = util.logger.logging.getLogger('pkt.funder.test')
 
 
 class RoutinesTest(unittest.TestCase):
@@ -12,9 +17,10 @@ class RoutinesTest(unittest.TestCase):
     def setUpClass(cls):
         """Create tables if they does not exists"""
         try:
+            LOGGER.info('creating tables...')
             db.init_db()
-        except:
-            pass
+        except db.util.db.mysql.connector.ProgrammingError:
+            LOGGER.info('tables already exists')
 
     def setUp(self):
         """Insert data into tables"""
@@ -40,7 +46,6 @@ class RoutinesTest(unittest.TestCase):
             sql.execute(
                 """INSERT INTO test_results (pubkey, name, result)
                 VALUES ('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR', 'basic', '1')""")
-        # TODO: change these addresses for 'inactive'
         with db.SQL_CONNECTION() as sql:
             sql.execute(
                 """INSERT INTO purchases (user_pubkey, payment_pubkey,
@@ -67,7 +72,6 @@ class RoutinesTest(unittest.TestCase):
                 payment_currency, requested_currency, euro_cents, paid)
                 VALUES ('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR',
                 '2NBMEXediyAYCGcVfW5W2toR5Kui1EpqaYB', 'BTC', 'XLM', '800', '0')""")
-
 
     def test_check_purchases_addresses(self):
         """Test for check_purchases_addresses routine"""

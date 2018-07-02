@@ -16,9 +16,10 @@ class DBTest(unittest.TestCase):
     def setUpClass(cls):
         """Create tables if they does not exists"""
         try:
+            LOGGER.info('creating tables...')
             db.init_db()
-        except:
-            pass
+        except db.util.db.mysql.connector.ProgrammingError:
+            LOGGER.info('tables already exists')
 
     def setUp(self):
         assert db.DB_NAME.startswith('test'), "refusing to test on db named {}".format(db.DB_NAME)
