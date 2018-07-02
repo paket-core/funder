@@ -43,17 +43,17 @@ class RoutinesTest(unittest.TestCase):
                 """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
                 VALUES ('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ',
-                '0x8AD9062288A4081BDBDB488DA0099B4E1D87DDF8', 'ETH', 'BUL', '500', '0')""")
+                '0xBAEc12c49fea1f3AC84Fa9DC2A8A3559Fe81bC5F', 'ETH', 'BUL', '500', '0')""")
             sql.execute(
                 """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
                 VALUES ('GBD5666CDBM6MS3RKXLO5WOXVJXECOCLBAE6B62XMNKZLF63GC6V3IB5',
-                '0x8b9bb1e80a765553052e358452091cbe0ab9d114', 'ETH', 'BUL', '100', '0')""")
+                '0x2F41CCaD2466AdFe3A5C1Ed60b1589e125130ef3', 'ETH', 'BUL', '100', '0')""")
             sql.execute(
                 """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
                 VALUES ('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR',
-                '0x580ce178db05e6826f9fdef8c8645e32b9865f0a', 'ETH', 'BUL', '1200', '0')""")
+                '0x3dcf887038BC4BD4710fEe6B49ecE233482B377F', 'ETH', 'BUL', '1200', '0')""")
             sql.execute(
                 """INSERT INTO purchases (user_pubkey, payment_pubkey,
                 payment_currency, requested_currency, euro_cents, paid)
