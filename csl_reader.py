@@ -79,25 +79,27 @@ class CSLListChecker:
         LOGGER.info(cls.all_rows[1].keys())
 
     @classmethod
-    def score_name(cls, name):
+    def score(cls, search_query, *search_rows):
         """
-        calculate risk score for a name - from 0 (no fit) to 1 (name found).
-        :param name: name to look for. Order should be "Family Name, Surname"
+        calculate risk score for a given search_query - from 0 (no fit) to 1 (match found).
+        :param search_query: words to look for.
+        :param search_rows: names of rows to search in
         :return: score based on fuzzy search
         """
         top_score = 0.0
         comment = ''
         programs = ''
         for row in cls.all_rows:
-            search_string = row['name'] + " " + row['alt_names']
-            ratio = fuzzywuzzy.fuzz.ratio(name.lower(), search_string.lower()) / 100
-            partial_ratio = fuzzywuzzy.fuzz.partial_ratio(name.lower(), search_string.lower()) / 100
+            search_string = ' '.join([row[row_name] for row_name in search_rows])
+            ratio = fuzzywuzzy.fuzz.ratio(search_query.lower(), search_string.lower()) / 100
+            partial_ratio = fuzzywuzzy.fuzz.partial_ratio(search_query.lower(), search_string.lower()) / 100
 
             # score is based on partial fuzzy search plus a small factor for full search
             fuzzy_score = min(1.0, .95 * partial_ratio + ratio / 5)
             if fuzzy_score > .6 and fuzzy_score > top_score:
                 # print("SC: %.2f %.2f n:%s str:%s" % (partial_ratio, ratio, name, search_string))
                 top_score = fuzzy_score
+                # TODO: add more flexible code
                 comment = "name:{} - aka:{}  program:{}".format(row['name'], row['alt_names'], row['programs'])
                 programs = str(row['programs'])
         final_score = top_score ** 2
@@ -108,3 +110,32 @@ class CSLListChecker:
         else:
             util.countly.send_countly_event('KYC_verify', 1, result='pass', hour=17)
         return final_score, comment
+
+
+    @classmethod
+    def score_name(cls, name):
+        """
+        calculate risk score for a name - from 0 (no fit) to 1 (name found).
+        :param name: name to look for. Order should be "Family Name, Surname"
+        :return: score based on fuzzy search
+        """
+        return cls.score(name, 'name', 'alt_names')
+
+    @classmethod
+    def score_address(cls, address):
+        """
+        calculate risk score for an address - from 0 (no fit) to 1 (address found).
+        :param address: address to look for.
+        :return: score based on fuzzy search
+        """
+        return cls.score(address, 'addresses')
+
+    @classmethod
+    def score_phone(cls, phone):
+        """
+        calculate risk score for an phone number - from 0 (no fit) to 1 (phone number found).
+        :param phone: phone to look for
+        :return: score based on fuzzy search
+        """
+        # it is just mock-up
+        return 0
