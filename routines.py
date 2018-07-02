@@ -6,7 +6,7 @@ import util.logger
 import db
 
 
-LOGGER = util.logger.logging.getLogger('pkt.funder.MODULENAME')
+LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
 ETHERSCAN_API_KEY = '6KYNDD61K9YA9CX1NWUPVWCVFJN24K9QV5'
 # currencies ids on coinmarketcap.com
 XLM_ID = 512
