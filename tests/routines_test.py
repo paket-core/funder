@@ -8,6 +8,14 @@ import routines
 class RoutinesTest(unittest.TestCase):
     """Test for routines"""
 
+    @classmethod
+    def setUpClass(cls):
+        """Create tables if they does not exists"""
+        try:
+            db.init_db()
+        except:
+            pass
+
     def setUp(self):
         """Insert data into tables"""
         db.util.db.clear_tables(db.SQL_CONNECTION, db.DB_NAME)

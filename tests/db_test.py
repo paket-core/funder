@@ -12,6 +12,14 @@ util.logger.setup()
 class DBTest(unittest.TestCase):
     """Testing the database module."""
 
+    @classmethod
+    def setUpClass(cls):
+        """Create tables if they does not exists"""
+        try:
+            db.init_db()
+        except:
+            pass
+
     def setUp(self):
         assert db.DB_NAME.startswith('test'), "refusing to test on db named {}".format(db.DB_NAME)
         LOGGER.info('clearing database')
