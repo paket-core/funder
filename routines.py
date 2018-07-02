@@ -41,7 +41,7 @@ def get_currency_price(id_, convert):
 
 def get_btc_balance(address):
     """Get bitcoin address balance"""
-    url = 'https://chain.api.btc.com/v3/address/{}'.format(address)
+    url = 'https://tchain.api.btc.com/v3/address/{}'.format(address)
     response = requests.get(url).json()
     if response['err_no'] == 0:
         return response['data']['balance']
@@ -84,6 +84,7 @@ def check_purchases_addresses():
     with db.SQL_CONNECTION() as sql:
         sql.execute("SELECT * FROM purchases WHERE paid = '0'")
         for purchase in sql.fetchall():
+            LOGGER.info("checking address %s", purchase['payment_pubkey'])
             balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
             euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], int(balance))
             if euro_cents_balance >= db.MINIMUM_MONTHLY_ALLOWANCE:

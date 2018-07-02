@@ -51,8 +51,7 @@ def user_infos_handler(user_pubkey, **kwargs):
     Set user details.
     """
     try:
-        db.set_internal_user_info(user_pubkey, **kwargs)
-        return {'status': 200, 'user_details': db.get_user_infos(user_pubkey)}
+        return {'status': 200, 'user_details': db.set_internal_user_info(user_pubkey, **kwargs)}
     except AssertionError as exception:
         return {'status': 400, 'error': str(exception)}
     except db.UserNotFound as exception:
@@ -67,7 +66,7 @@ def create_stellar_account_handler(user_pubkey, payment_currency):
     Request the creation of a Stellar account.
     Returns an address to send ETH or BTC to.
     """
-    return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, 500, payment_currency)}
+    return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, 500, payment_currency, 'XLM')}
 
 
 @BLUEPRINT.route("/v{}/purchase_xlm".format(VERSION), methods=['POST'])
@@ -78,7 +77,7 @@ def purchase_xlm_handler(user_pubkey, euro_cents, payment_currency):
     Request the purchase of Stellar lumens.
     Returns an address to send ETH or BTC to.
     """
-    return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, euro_cents, payment_currency)}
+    return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, euro_cents, payment_currency, 'XLM')}
 
 
 @BLUEPRINT.route("/v{}/purchase_bul".format(VERSION), methods=['POST'])
@@ -89,7 +88,7 @@ def purchase_bul_handler(user_pubkey, euro_cents, payment_currency):
     Request the purchase of Stellar lumens.
     Returns an address to send ETH or BTC to.
     """
-    return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, euro_cents, payment_currency)}
+    return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, euro_cents, payment_currency, 'BUL')}
 
 
 @BLUEPRINT.route("/v{}/debug/users".format(VERSION), methods=['GET'])

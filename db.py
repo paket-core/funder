@@ -9,7 +9,7 @@ import util.db
 
 LOGGER = logging.getLogger('pkt.funder.db')
 SEED = ('client ancient calm uncover opinion coil priority misery empty favorite moment myth')
-XPUB = 'xpub69Jm1CxJ8kdGZuqy3mkoKekzN1h4KNKUJiTsUQ9Hc1do6Rs5BEEFi2VYJJGSWVpURv4Nq3g4C3JTsxPUzEk9EVcTGuE2VuyhW7KpmsDe4bJ'
+XPUB = 'tpubD6NzVbkrYhZ4XMSG7EWChwJXwfByid9TdZRVaej1rpDTHV3WamyuApceF5DDZXetx8kbH82NouoazYqPeCEZWWeXHZ1do5LBCe5xMcZYeGe'
 DB_HOST = os.environ.get('PAKET_DB_HOST', '127.0.0.1')
 DB_PORT = int(os.environ.get('PAKET_DB_PORT', 3306))
 DB_USER = os.environ.get('PAKET_DB_USER', 'root')
@@ -17,49 +17,16 @@ DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
 MINIMUM_MONTHLY_ALLOWANCE = 5000
-MAXIMUM_MONTHLY_ALLOWANCE = 10000
+BASIC_MONTHLY_ALLOWANCE = 10000
 
 
 class UserNotFound(Exception):
     """Requested user does not exist."""
 
 
-def get_table_columns(table_name):
-    """Get the fields of a specific table."""
-    with SQL_CONNECTION() as sql:
-        sql.execute("""
-            SELECT TABLE_NAME FROM information_schema.tables
-            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s""", (DB_NAME, table_name))
-        tables = sql.fetchall()
-        assert len(tables) == 1, "table {} does not exist".format(table_name)
-        sql.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s",
-                    (DB_NAME, tables[0]['TABLE_NAME']))
-        return [column['COLUMN_NAME'] for column in sql.fetchall()]
-
-
-def verify_columns(table_name, accessed_columns):
-    """Raise an exception if table_name does not contain all of accessed_columns."""
-    nonexisting_columns = set(accessed_columns) - set(get_table_columns(table_name))
-    if nonexisting_columns:
-        raise AssertionError("users do not support the following fields: {}".format(nonexisting_columns))
-
-
-def clear_tables():
-    """Clear all tables in the database."""
-    with SQL_CONNECTION() as sql:
-        sql.execute("SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = %s", (DB_NAME,))
-        for table_name in [row['TABLE_NAME'] for row in sql.fetchall()]:
-            sql.execute("DELETE from {}".format(table_name))
-
-
 def init_db():
     """Initialize the database."""
     with SQL_CONNECTION() as sql:
-        # Not using IF EXISTS here in case we want different handling.
-        sql.execute("SELECT table_name FROM information_schema.tables where table_name = 'users'")
-        if len(sql.fetchall()) == 1:
-            LOGGER.debug('table already exists')
-            return
         sql.execute('''
             CREATE TABLE users(
                 pubkey VARCHAR(56) PRIMARY KEY,
@@ -67,22 +34,26 @@ def init_db():
         LOGGER.debug('users table created')
         sql.execute('''
             CREATE TABLE internal_user_infos(
-                pubkey VARCHAR(56) PRIMARY KEY,
+                timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                pubkey VARCHAR(56),
                 full_name VARCHAR(256),
                 phone_number VARCHAR(32),
                 address VARCHAR(1024),
+                PRIMARY KEY (timestamp, pubkey),
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('internal_user_infos table populated')
         sql.execute('''
             CREATE TABLE test_results(
+                timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                 pubkey VARCHAR(56) NOT NULL,
                 name VARCHAR(64) NOT NULL,
                 result INTEGER,
+                PRIMARY KEY (timestamp, pubkey),
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('test_results table created')
         sql.execute('''
             CREATE TABLE purchases(
-                timestamp INTEGER NOT NULL DEFAULT 0,
+                timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                 user_pubkey VARCHAR(56) NOT NULL,
                 payment_pubkey VARCHAR(56) NOT NULL,
                 payment_currency VARCHAR(3) NOT NULL,
@@ -134,50 +105,38 @@ def get_test_result(pubkey, test_name):
         sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s LIMIT 1", (
             pubkey, test_name))
         try:
-            return sql.fetchone()['result']
-        except TypeError:
+            return sql.fetchall()[0]['result']
+        except IndexError:
             return 0
-
-
-def set_internal_user_info(pubkey, **kwargs):
-    """Add or update optional details in local user info."""
-    verify_columns('internal_user_infos', kwargs.keys())
-    with SQL_CONNECTION() as sql:
-        try:
-            sql.execute("INSERT INTO internal_user_infos (pubkey) VALUES (%s)", (pubkey,))
-        except util.db.mysql.connector.IntegrityError:
-            pass
-        try:
-            for key, value in kwargs.items():
-                sql.execute("UPDATE internal_user_infos SET {} = %s WHERE pubkey = %s".format(key), (value, pubkey))
-        except util.db.mysql.connector.IntegrityError:
-            raise AssertionError("{} = {} is not a valid user detail".format(key, value))
-    if user_set_all_info(pubkey):
-        update_test(pubkey, 'basic', 1)
-
-
-def user_set_all_info(pubkey):
-    """Shows if user set all information about himself"""
-    user = get_user(pubkey)
-    return user['full_name'] is not None and user['phone_number'] is not None and user['address'] is not None
 
 
 def get_user_infos(pubkey):
     """Get all user infos."""
     with SQL_CONNECTION() as sql:
-        sql.execute("""
-            SELECT * FROM users
-            LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey
-            WHERE users.pubkey = %s""", (pubkey,))
+        sql.execute(
+            "SELECT * FROM internal_user_infos WHERE pubkey = %s", (pubkey,))
         try:
-            return sql.fetchone()
-        except TypeError:
+            return {
+                key.decode('utf8') if isinstance(key, bytes) else key: val
+                for key, val in sql.fetchall()[0].items()}
+        except IndexError:
             raise UserNotFound("user with pubkey {} does not exists".format(pubkey))
+
+
+def set_internal_user_info(pubkey, **kwargs):
+    """Add optional details in local user info."""
+    kwargs['pubkey'] = pubkey
+    with SQL_CONNECTION() as sql:
+        sql.execute("INSERT INTO internal_user_infos ({}) VALUES ({})".format(
+            ', '.join(kwargs.keys()), ', '.join(['%s' for key in kwargs])), (list(kwargs.values())))
+    if kwargs.get('full_name') and kwargs.get('phone_number') and kwargs.get('address'):
+        update_test(pubkey, 'basic', 1)
+    return get_user_infos(pubkey)
 
 
 def get_monthly_allowance(pubkey):
     """Get a user's monthly allowance."""
-    return MAXIMUM_MONTHLY_ALLOWANCE if get_test_result(pubkey, 'basic') > 0 else 0
+    return BASIC_MONTHLY_ALLOWANCE if get_test_result(pubkey, 'basic') > 0 else 0
 
 
 def get_monthly_expanses(pubkey):
@@ -196,12 +155,9 @@ def get_monthly_expanses(pubkey):
 def get_users():
     """Get list of users and their details - for debug only."""
     with SQL_CONNECTION() as sql:
-        sql.execute('''
-            SELECT * FROM users
-            LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey
-            LEFT JOIN test_results on users.pubkey = test_results.pubkey''')
-        return {user['pubkey']: dict(
-            user,
+        sql.execute('SELECT * FROM users')
+        return {user['call_sign']: dict(
+            get_user_infos(user['pubkey']),
             monthly_allowance=get_monthly_allowance(user['pubkey']),
             monthly_expanses=get_monthly_expanses(user['pubkey'])
         ) for user in sql.fetchall()}
@@ -216,7 +172,7 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
         "{} is allowed to purchase up to {} euro-cents when {} are required".format(
             user_pubkey, remaining_monthly_allowance, euro_cents)
 
-    payment_pubkey = pywallet.wallet.create_address(network=payment_currency, xpub=XPUB)['address']
+    payment_pubkey = pywallet.wallet.create_address(network=payment_currency+'test', xpub=XPUB)['address']
     with SQL_CONNECTION() as sql:
         sql.execute(
             """INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency)
