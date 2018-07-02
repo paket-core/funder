@@ -138,4 +138,4 @@ class CSLListChecker:
         :return: score based on fuzzy search
         """
         # it is just mock-up
-        return 0
+        return .5
