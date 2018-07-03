@@ -145,11 +145,11 @@ def get_monthly_expanses(pubkey):
     """Get a user's expanses in the last month."""
     with SQL_CONNECTION() as sql:
         sql.execute("""
-            SELECT SUM(euro_cents) FROM purchases
+            SELECT CAST(SUM(euro_cents) AS SIGNED) euro_cents FROM purchases
             WHERE user_pubkey = %s AND timestamp > %s AND paid > 0""", (
                 pubkey, time.time() - (30 * 24 * 60 * 60)))
         try:
-            return sql.fetchall()[0].items()[0] or 0
+            return sql.fetchall()[0][b'euro_cents'] or 0
         except TypeError:
             return 0
 
