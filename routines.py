@@ -44,7 +44,7 @@ def get_btc_balance(address):
     url = 'https://tchain.api.btc.com/v3/address/{}'.format(address)
     response = requests.get(url).json()
     if response['err_no'] == 0:
-        return response['data']['balance']
+        return response['data']['balance'] if response['data'] is not None else 0
     raise BalanceError(response['err_msg'])
 
 
