@@ -168,7 +168,7 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
     assert payment_currency in ['BTC', 'ETH'], 'payment_currency must be BTC or ETH'
     assert requested_currency in ['BUL', 'XLM'], 'requested_currency must be BUL or XLM'
     remaining_monthly_allowance = get_monthly_allowance(user_pubkey) - get_monthly_expanses(user_pubkey)
-    assert remaining_monthly_allowance >= euro_cents, \
+    assert remaining_monthly_allowance >= int(euro_cents), \
         "{} is allowed to purchase up to {} euro-cents when {} are required".format(
             user_pubkey, remaining_monthly_allowance, euro_cents)
 
@@ -179,3 +179,17 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
             VALUES (%s, %s, %s, %s, %s)""",
             (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency))
     return payment_pubkey
+
+
+def get_unpaid():
+    """Get all unpaid addresses."""
+    with SQL_CONNECTION() as sql:
+        sql.execute('SELECT * FROM purchases WHERE paid = 0')
+        return sql.fetchall()
+
+
+def get_paid():
+    """Get all paid addresses."""
+    with SQL_CONNECTION() as sql:
+        sql.execute('SELECT * FROM purchases WHERE paid = 1')
+        return sql.fetchall()
