@@ -197,15 +197,6 @@ def get_paid():
         return sql.fetchall()
 
 
-def create_purchase(user_pubkey, payment_pubkey, payment_currency, requested_currency, euro_cents):
-    """Create new purchase for user"""
-    with SQL_CONNECTION() as sql:
-        sql.execute("""
-            INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, requested_currency, euro_cents)
-            VALUES (%s, %s, %s, %s, %s)""",
-                    (user_pubkey, payment_pubkey, payment_currency, requested_currency, euro_cents))
-
-
 def update_purchase(payment_pubkey, paid_status):
     """Update purchase status"""
     with SQL_CONNECTION() as sql:
