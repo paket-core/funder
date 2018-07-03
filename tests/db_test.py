@@ -90,3 +90,71 @@ class DBTest(unittest.TestCase):
         db.update_test(pubkey, 'basic', 1)
         monthly_allowance = db.get_monthly_allowance(pubkey)
         self.assertEqual(monthly_allowance, db.BASIC_MONTHLY_ALLOWANCE, 'test completeed user has wrong allowance')
+
+    def test_monthly_expanses(self):
+        """Test monthly expanses logic"""
+        pubkey, call_sign = 'pubkey', 'call_sign'
+        self.internal_test_create_user(pubkey, call_sign)
+        monthly_expanses = db.get_monthly_expanses(pubkey)
+        self.assertEqual(monthly_expanses, 0, 'monthly expanses are incorrect')
+        db.update_test(pubkey, 'basic', 1)
+        payment_address = db.get_payment_address(pubkey, 500, 'BTC', 'BUL')
+        db.update_purchase(payment_address, 1)
+        monthly_expanses = db.get_monthly_expanses(pubkey)
+        self.assertEqual(monthly_expanses, 500, 'monthly expanses are incorrect')
+        payment_address = db.get_payment_address(pubkey, 600, 'ETH', 'XLM')
+        db.update_purchase(payment_address, 1)
+        monthly_expanses = db.get_monthly_expanses(pubkey)
+        self.assertEqual(monthly_expanses, 1100, 'monthly expanses are incorrect')
+
+    def test_get_payment_address(self):
+        """Test get payment address"""
+        pubkey, call_sign = 'pubkey', 'call_sign'
+        self.internal_test_create_user(pubkey, call_sign)
+        db.update_test('pubkey', 'basic', 1)
+        payment_address = db.get_payment_address(pubkey, 500, 'BTC', 'BUL')
+        purchase = db.get_unpaid()[0]
+        self.assertEqual(payment_address, purchase['payment_pubkey'], 'payment address was not created for user')
+        self.assertEqual(pubkey, purchase['user_pubkey'], 'payment address was created for another user')
+        self.assertEqual(500, purchase['euro_cents'], 'created record has wrong euro_cents value')
+        self.assertEqual('BTC', purchase['payment_currency'], 'created record has wrong payment_currency value')
+        self.assertEqual('BUL', purchase['requested_currency'], 'created record has wrong requested_currency value')
+
+    def test_get_unpaid(self):
+        """Test get unpaid purchases"""
+        pubkey, call_sign = 'pubkey', 'call_sign'
+        self.internal_test_create_user(pubkey, call_sign)
+        db.update_test(pubkey, 'basic', 1)
+        purchase_amount = 5
+        payment_addresses = [db.get_payment_address(pubkey, 700, 'BTC', 'XLM') for _ in range(purchase_amount)]
+        unpaid = db.get_unpaid()
+        self.assertEqual(len(unpaid), purchase_amount, 'actual purchases amount does not correspond to control value')
+        for address in payment_addresses:
+            with self.subTest():
+                self.assertIn(address, (purchase['payment_pubkey'] for purchase in unpaid),
+                              'created payment address does not present among unpaid purchases')
+
+    def test_get_paid(self):
+        """Test get paid purchases"""
+        pubkey, call_sign = 'pubkey', 'call_sign'
+        self.internal_test_create_user(pubkey, call_sign)
+        db.update_test(pubkey, 'basic', 1)
+        purchase_amount = 5
+        payment_addresses = [db.get_payment_address(pubkey, 700, 'BTC', 'XLM') for _ in range(purchase_amount)]
+        for address in payment_addresses:
+            db.update_purchase(address, 1)
+        paid = db.get_paid()
+        self.assertEqual(len(paid), purchase_amount, 'actual purchases amount does not correspond to control value')
+        for address in payment_addresses:
+            with self.subTest():
+                self.assertIn(address, (purchase['payment_pubkey'] for purchase in paid),
+                              'created payment address does not present among unpaid purchases')
+
+    def test_update_purchase(self):
+        pubkey, call_sign = 'pubkey', 'call_sign'
+        self.internal_test_create_user(pubkey, call_sign)
+        db.update_test(pubkey, 'basic', 1)
+        address = db.get_payment_address(pubkey, 700, 'BTC', 'XLM')
+        db.update_purchase(address, 1)
+        purchase = db.get_paid()[0]
+        self.assertEqual(purchase['paid'], 1, 'purchase does not updated')
