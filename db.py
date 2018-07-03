@@ -174,7 +174,8 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
         "{} is allowed to purchase up to {} euro-cents when {} are required".format(
             user_pubkey, remaining_monthly_allowance, euro_cents)
 
-    payment_pubkey = pywallet.wallet.create_address(network=payment_currency+'test', xpub=XPUB)['address']
+    network = 'btctest' if payment_currency.upper() == 'BTC' else payment_currency
+    payment_pubkey = pywallet.wallet.create_address(network=network, xpub=XPUB)['address']
     with SQL_CONNECTION() as sql:
         sql.execute(
             """INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency)
