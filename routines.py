@@ -81,27 +81,25 @@ def currency_to_euro_cents(currency, amount):
 
 def check_purchases_addresses():
     """Check purchases addresses and set paid status correspondingly to balance"""
-    with db.SQL_CONNECTION() as sql:
-        sql.execute("SELECT * FROM purchases WHERE paid = '0'")
-        for purchase in sql.fetchall():
-            LOGGER.info("checking address %s", purchase['payment_pubkey'])
-            balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-            euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], int(balance))
-            if euro_cents_balance >= db.MINIMUM_MONTHLY_ALLOWANCE:
-                sql.execute("UPDATE purchases SET paid = '1' WHERE payment_pubkey = %s", (purchase['payment_pubkey'],))
+    purchases = db.get_unpaid()
+    for purchase in purchases:
+        LOGGER.info("checking address %s", purchase['payment_pubkey'])
+        balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
+        euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], int(balance))
+        if euro_cents_balance >= db.MINIMUM_MONTHLY_ALLOWANCE:
+            db.update_purchase(purchase['payment_pubkey'], 1)
 
 
 def send_requested_currency():
     """Check purchases addresses with paid status and send requested currency to user account"""
-    with db.SQL_CONNECTION() as sql:
-        sql.execute("SELECT * FROM purchases WHERE paid = '1'")
-        for purchase in sql.fetchall():
-            balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-            euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], int(balance))
-            monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
-            monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
-            remaining_monthly_allowance = monthly_allowance - monthly_expanses
-            euro_to_charge = min(euro_cents_balance, remaining_monthly_allowance)
-            if euro_to_charge:
-                # TODO: place code for sending BULs or XLM to user accoutn here
-                sql.execute("UPDATE purchases SET paid = '2' WHERE payment_pubkey = %s", (purchase['payment_pubkey'],))
+    purchases = db.get_paid()
+    for purchase in purchases:
+        balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
+        euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], int(balance))
+        monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
+        monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
+        remaining_monthly_allowance = monthly_allowance - monthly_expanses
+        euro_to_charge = min(euro_cents_balance, remaining_monthly_allowance)
+        if euro_to_charge:
+            # TODO: place code for sending BULs or XLM to user accoutn here
+            db.update_purchase(purchase['payment_pubkey'], 2)
