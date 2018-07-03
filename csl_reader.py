@@ -59,7 +59,7 @@ class CSLListChecker:
                     handle.write(block)
             util.countly.send_countly_event('download csl', 1, end_session=1)
         except Exception as exception:
-            LOGGER.warning("error loading %s, error: %s", (cls.url, exception))
+            LOGGER.warning("error loading %s, error: %s", cls.url, exception)
 
         LOGGER.info(open(cls.filename, 'r'))
         # pylint: enable=broad-except
@@ -138,4 +138,4 @@ class CSLListChecker:
         :return: score based on fuzzy search
         """
         # it is just mock-up
-        return 0
+        return .5

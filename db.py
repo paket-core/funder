@@ -5,6 +5,7 @@ import time
 
 import pywallet.wallet
 
+import kyc
 import util.db
 
 LOGGER = logging.getLogger('pkt.funder.db')
@@ -102,7 +103,7 @@ def update_test(pubkey, test_name, result=None):
 def get_test_result(pubkey, test_name):
     """Get the latest result of a test."""
     with SQL_CONNECTION() as sql:
-        sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s LIMIT 1", (
+        sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s", (
             pubkey, test_name))
         try:
             return sql.fetchall()[0]['result']
@@ -130,7 +131,8 @@ def set_internal_user_info(pubkey, **kwargs):
         sql.execute("INSERT INTO internal_user_infos ({}) VALUES ({})".format(
             ', '.join(kwargs.keys()), ', '.join(['%s' for key in kwargs])), (list(kwargs.values())))
     if kwargs.get('full_name') and kwargs.get('phone_number') and kwargs.get('address'):
-        update_test(pubkey, 'basic', 1)
+        basic_kyc_result = kyc.basic_kyc(kwargs.get('full_name'), kwargs.get('address'), kwargs.get('phone_number'))
+        update_test(pubkey, 'basic', basic_kyc_result)
     return get_user_infos(pubkey)
 
 

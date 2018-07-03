@@ -12,6 +12,15 @@ util.logger.setup()
 class DBTest(unittest.TestCase):
     """Testing the database module."""
 
+    @classmethod
+    def setUpClass(cls):
+        """Create tables if they does not exists"""
+        try:
+            LOGGER.info('creating tables...')
+            db.init_db()
+        except db.util.db.mysql.connector.ProgrammingError:
+            LOGGER.info('tables already exists')
+
     def setUp(self):
         assert db.DB_NAME.startswith('test'), "refusing to test on db named {}".format(db.DB_NAME)
         LOGGER.info('clearing database')
@@ -58,3 +67,26 @@ class DBTest(unittest.TestCase):
         db.set_internal_user_info(pubkey, phone_number=phone_number, address=address)
         self.assertEqual(db.get_user_infos(pubkey)['phone_number'], phone_number)
         self.assertEqual(db.get_user_infos(pubkey)['address'], address)
+
+    def test_user_test_results(self):
+        """Test adding, modifying, and reading test results"""
+        pubkey, call_sign = 'pubkey', 'call_sign'
+        self.internal_test_create_user(pubkey, call_sign)
+        test_result = db.get_test_result(pubkey, 'basic')
+        self.assertEqual(test_result, 0, 'newly created user already has result for test')
+        db.update_test(pubkey, 'basic')
+        test_result = db.get_test_result(pubkey, 'basic')
+        self.assertEqual(test_result, None, 'updating test for user sets wrong result')
+        db.update_test(pubkey, 'basic', 1)
+        test_result = db.get_test_result(pubkey, 'basic')
+        self.assertEqual(test_result, 1, 'reading test results does not return actual result')
+
+    def test_monthly_allowance(self):
+        """Test monthly allowance logic"""
+        pubkey, call_sign = 'pubkey', 'call_sign'
+        self.internal_test_create_user(pubkey, call_sign)
+        monthly_allowance = db.get_monthly_allowance(pubkey)
+        self.assertEqual(monthly_allowance, 0, 'newly created user has non-zero allowance')
+        db.update_test(pubkey, 'basic', 1)
+        monthly_allowance = db.get_monthly_allowance(pubkey)
+        self.assertEqual(monthly_allowance, db.BASIC_MONTHLY_ALLOWANCE, 'test completeed user has wrong allowance')
