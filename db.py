@@ -103,7 +103,7 @@ def update_test(pubkey, test_name, result=None):
 def get_test_result(pubkey, test_name):
     """Get the latest result of a test."""
     with SQL_CONNECTION() as sql:
-        sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s ORDER BY timestamp DESC", (
+        sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s ORDER BY timestamp DESC LIMIT 1", (
             pubkey, test_name))
         try:
             return sql.fetchall()[0]['result']
@@ -115,7 +115,7 @@ def get_user_infos(pubkey):
     """Get all user infos."""
     with SQL_CONNECTION() as sql:
         sql.execute(
-            "SELECT * FROM internal_user_infos WHERE pubkey = %s", (pubkey,))
+            "SELECT * FROM internal_user_infos WHERE pubkey = %s ORDER BY timestamp DESC LIMIT 1", (pubkey,))
         try:
             return {
                 key.decode('utf8') if isinstance(key, bytes) else key: val
@@ -126,13 +126,24 @@ def get_user_infos(pubkey):
 
 def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
-    kwargs['pubkey'] = pubkey
+    try:
+        user_details = get_user_infos(pubkey)
+    except UserNotFound:
+        user_details = {}
+    user_details.update(kwargs)
+    user_details['pubkey'] = pubkey
+    del user_details['timestamp']
+
     with SQL_CONNECTION() as sql:
         sql.execute("INSERT INTO internal_user_infos ({}) VALUES ({})".format(
-            ', '.join(kwargs.keys()), ', '.join(['%s' for key in kwargs])), (list(kwargs.values())))
-    if kwargs.get('full_name') and kwargs.get('phone_number') and kwargs.get('address'):
-        basic_kyc_result = kyc.basic_kyc(kwargs.get('full_name'), kwargs.get('address'), kwargs.get('phone_number'))
+            ', '.join(user_details.keys()), ', '.join(['%s' for key in user_details])
+        ), (list(user_details.values())))
+
+    if user_details.get('full_name') and user_details.get('phone_number') and user_details.get('address'):
+        basic_kyc_result = kyc.basic_kyc(
+            user_details['full_name'], user_details['address'], user_details['phone_number'])
         update_test(pubkey, 'basic', basic_kyc_result)
+
     return get_user_infos(pubkey)
 
 
