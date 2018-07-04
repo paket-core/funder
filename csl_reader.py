@@ -88,10 +88,11 @@ class CSLListChecker:
         """
         top_score = 0.0
         programs = ''
+        search_query = search_query.lower()
         for row in cls.all_rows:
-            search_string = ' '.join([row[row_name] for row_name in search_rows])
-            ratio = fuzzywuzzy.fuzz.ratio(search_query.lower(), search_string.lower()) / 100
-            partial_ratio = fuzzywuzzy.fuzz.partial_ratio(search_query.lower(), search_string.lower()) / 100
+            search_string = ' '.join([row[row_name] for row_name in search_rows]).lower()
+            ratio = fuzzywuzzy.fuzz.ratio(search_query, search_string) / 100
+            partial_ratio = fuzzywuzzy.fuzz.partial_ratio(search_query, search_string) / 100
 
             # score is based on partial fuzzy search plus a small factor for full search
             fuzzy_score = min(1.0, .95 * partial_ratio + ratio / 5)
@@ -124,7 +125,19 @@ class CSLListChecker:
         :param address: address to look for.
         :return: score based on fuzzy search
         """
-        return cls.score(address, 'addresses')
+        top_score = 0.0
+        programs = ''
+        search_query = address.lower()
+        for row in cls.all_rows:
+            search_string = row['addresses']
+            ratio = fuzzywuzzy.fuzz.ratio(search_query, search_string) / 100
+            partial_ratio = fuzzywuzzy.fuzz.partial_ratio(search_query, search_string) / 100
+
+            # score is based on partial fuzzy search plus a small factor for full search
+            fuzzy_score = min(1.0, .95 * partial_ratio + ratio / 5)
+            if fuzzy_score > .6 and fuzzy_score > top_score:
+                top_score = fuzzy_score
+        return top_score
 
     @classmethod
     def score_phone(cls, phone):
