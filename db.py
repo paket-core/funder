@@ -103,7 +103,7 @@ def update_test(pubkey, test_name, result=None):
 def get_test_result(pubkey, test_name):
     """Get the latest result of a test."""
     with SQL_CONNECTION() as sql:
-        sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s ORDER BY timestamp DESC", (
+        sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s ORDER BY timestamp DESC LIMIT 1", (
             pubkey, test_name))
         try:
             return sql.fetchall()[0]['result']
@@ -115,7 +115,7 @@ def get_user_infos(pubkey):
     """Get all user infos."""
     with SQL_CONNECTION() as sql:
         sql.execute(
-            "SELECT * FROM internal_user_infos WHERE pubkey = %s", (pubkey,))
+            "SELECT * FROM internal_user_infos WHERE pubkey = %s ORDER BY timestamp DESC LIMIT 1", (pubkey,))
         try:
             return {
                 key.decode('utf8') if isinstance(key, bytes) else key: val
