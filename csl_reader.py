@@ -87,7 +87,6 @@ class CSLListChecker:
         :return: score based on fuzzy search
         """
         top_score = 0.0
-        comment = ''
         programs = ''
         for row in cls.all_rows:
             search_string = ' '.join([row[row_name] for row_name in search_rows])
@@ -99,8 +98,6 @@ class CSLListChecker:
             if fuzzy_score > .6 and fuzzy_score > top_score:
                 # print("SC: %.2f %.2f n:%s str:%s" % (partial_ratio, ratio, name, search_string))
                 top_score = fuzzy_score
-                # TODO: add more flexible code
-                comment = "name:{} - aka:{}  program:{}".format(row['name'], row['alt_names'], row['programs'])
                 programs = str(row['programs'])
         final_score = top_score ** 2
         if final_score > .95:
@@ -109,8 +106,7 @@ class CSLListChecker:
             util.countly.send_countly_event('KYC_verify', 1, programs=programs, result='suspicious')
         else:
             util.countly.send_countly_event('KYC_verify', 1, result='pass', hour=17)
-        return final_score, comment
-
+        return final_score
 
     @classmethod
     def score_name(cls, name):
