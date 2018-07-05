@@ -81,12 +81,10 @@ def get_user(pubkey=None, call_sign=None):
     assert bool(pubkey or call_sign) != bool(pubkey and call_sign), 'specify either pubkey or call_sign'
     condition = ('pubkey', pubkey) if pubkey else ('call_sign', call_sign)
     with SQL_CONNECTION() as sql:
-        sql.execute("SELECT * FROM users WHERE {} = %s".format(condition[0]), (condition[1], ))
+        sql.execute("SELECT * FROM users WHERE {} = %s LIMIT 1".format(condition[0]), (condition[1], ))
         try:
-            users = sql.fetchall()
-            assert len(users) == 1
-            return users[0]
-        except AssertionError:
+            return sql.fetchall()[0]
+        except IndexError:
             raise UserNotFound("user with {} {} does not exists".format(*condition))
 
 
@@ -126,6 +124,7 @@ def get_user_infos(pubkey):
 
 def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
+    get_user(pubkey)
     try:
         user_details = get_user_infos(pubkey)
     except UserNotFound:
