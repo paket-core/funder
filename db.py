@@ -42,7 +42,7 @@ def init_db():
                 address VARCHAR(1024),
                 PRIMARY KEY (timestamp, pubkey),
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
-        LOGGER.debug('internal_user_infos table populated')
+        LOGGER.debug('internal_user_infos table created')
         sql.execute('''
             CREATE TABLE test_results(
                 timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -170,7 +170,6 @@ def get_users():
     """Get list of users and their details - for debug only."""
     with SQL_CONNECTION() as sql:
         sql.execute('SELECT * FROM users')
-        LOGGER.warning(sql.fetchall())
         return {user['call_sign']: dict(
             get_user_infos(user['pubkey']),
             monthly_allowance=get_monthly_allowance(user['pubkey']),
