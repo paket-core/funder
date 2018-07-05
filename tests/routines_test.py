@@ -34,12 +34,12 @@ class RoutinesTest(unittest.TestCase):
         db.update_test('GBD5666CDBM6MS3RKXLO5WOXVJXECOCLBAE6B62XMNKZLF63GC6V3IB5', 'basic', 1)
         db.update_test('GC2QTLYQXYFEOFQ26QNEDZR5VQVHLQPCXA5S4JU64OMW5IXFF5J4L52Z', 'basic', 0)
         db.update_test('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR', 'basic', 1)
-        db.get_payment_address('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ', 600, 'BTC', 'BUL')
+        address = db.get_payment_address('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ', 600, 'BTC', 'BUL')
         db.get_payment_address('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ', 500, 'ETH', 'BUL')
         db.get_payment_address('GBD5666CDBM6MS3RKXLO5WOXVJXECOCLBAE6B62XMNKZLF63GC6V3IB5', 100, 'ETH', 'BUL')
         db.get_payment_address('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR', 1200, 'ETH', 'BUL')
         db.get_payment_address('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR', 800, 'BTC', 'XLM')
-        db.update_purchase('2N6WqqshyxoWuBGHLjbwnWAQSigJ4TJkYrt', 1)
+        db.update_purchase(address, 1)
 
     def test_check_purchases_addresses(self):
         """Test for check_purchases_addresses routine"""
