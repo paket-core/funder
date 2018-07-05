@@ -11,13 +11,13 @@ LOGGER = util.logger.logging.getLogger('pkt.funder.test')
 
 class KYCTest(unittest.TestCase):
 
-    def test_scummer(self):
-        """Test kyc result on scummer's data"""
+    def test_scammer(self):
+        """Test kyc result on scammer's data"""
         name = 'Youssef Ben Abdul Baki Ben Youcef'
         address = 'Piazza Giovane Italia n.2, Varese, IT'
         phone = ''
         result = kyc.basic_kyc(name, address, phone)
-        self.assertEqual(result, 0, "scummer passed kyc")
+        self.assertEqual(result, 0, "scammer passed kyc")
 
     def test_fair(self):
         """Test kyc on fair person's data"""
@@ -29,7 +29,7 @@ class KYCTest(unittest.TestCase):
 
     def test_partial(self):
         """Test kyc on partial available info"""
-        scummers_partial_info = [
+        scammers_partial_info = [
             {
                 'name':'Youssef Ben Abdul',
                 'address':'',
@@ -41,7 +41,7 @@ class KYCTest(unittest.TestCase):
                 'phone': '+82 20 7727 3112'
             }
         ]
-        for scummer in scummers_partial_info:
-            with self.subTest(**scummer):
-                result = kyc.basic_kyc(**scummer)
+        for scammer in scammers_partial_info:
+            with self.subTest(**scammer):
+                result = kyc.basic_kyc(**scammer)
                 self.assertEqual(result, 0)
