@@ -132,7 +132,7 @@ def get_test_result(pubkey, test_name):
         sql.execute("SELECT result FROM test_results WHERE pubkey = %s AND name = %s LIMIT 1", (
             pubkey, test_name))
         try:
-            return sql.fetchone()['result']
+            return sql.fetchall()[0]['result']
         except TypeError:
             return 0
 
@@ -160,9 +160,10 @@ def get_user_infos(pubkey):
         sql.execute("""
             SELECT * FROM users
             LEFT JOIN internal_user_infos on users.pubkey = internal_user_infos.pubkey
-            WHERE users.pubkey = %s""", (pubkey,))
+            WHERE users.pubkey = %s
+            ORDER BY internal_user_infos.timestamp DESC LIMIT 1""", (pubkey,))
         try:
-            return sql.fetchone()
+            return sql.fetchall()[0]
         except TypeError:
             raise UserNotFound("user with pubkey {} does not exists".format(pubkey))
 
