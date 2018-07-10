@@ -140,8 +140,7 @@ def set_internal_user_info(pubkey, **kwargs):
         ), (list(user_details.values())))
 
     if user_details.get('full_name') and user_details.get('phone_number') and user_details.get('address'):
-        basic_kyc_result = kyc.basic_kyc(
-            user_details['full_name'], user_details['address'], user_details['phone_number'])
+        basic_kyc_result = kyc.basic_kyc(user_details['full_name'])
         update_test(pubkey, 'basic', basic_kyc_result)
 
     return get_user_infos(pubkey)
