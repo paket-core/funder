@@ -54,7 +54,10 @@ CREATE_USER = {
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'call_sign', 'in': 'formData', 'required': True, 'type': 'string'}],
+        {'name': 'call_sign', 'in': 'formData', 'required': True, 'type': 'string'},
+        {'name': 'full_name', 'in': 'formData', 'type': 'string', 'required': False},
+        {'name': 'phone_number', 'in': 'formData', 'type': 'string', 'required': False},
+        {'name': 'address', 'in': 'formData', 'type': 'string', 'required': False}],
     'responses': {
         '201': {'description': 'user created'},
         '400': {'description': 'bad Request: pubkey or call_sign are not unique'}}}

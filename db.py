@@ -42,7 +42,7 @@ def init_db():
                 address VARCHAR(1024),
                 PRIMARY KEY (timestamp, pubkey),
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
-        LOGGER.debug('internal_user_infos table populated')
+        LOGGER.debug('internal_user_infos table created')
         sql.execute('''
             CREATE TABLE test_results(
                 timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -81,12 +81,10 @@ def get_user(pubkey=None, call_sign=None):
     assert bool(pubkey or call_sign) != bool(pubkey and call_sign), 'specify either pubkey or call_sign'
     condition = ('pubkey', pubkey) if pubkey else ('call_sign', call_sign)
     with SQL_CONNECTION() as sql:
-        sql.execute("SELECT * FROM users WHERE {} = %s".format(condition[0]), (condition[1], ))
+        sql.execute("SELECT * FROM users WHERE {} = %s LIMIT 1".format(condition[0]), (condition[1], ))
         try:
-            users = sql.fetchall()
-            assert len(users) == 1
-            return users[0]
-        except AssertionError:
+            return sql.fetchall()[0]
+        except IndexError:
             raise UserNotFound("user with {} {} does not exists".format(*condition))
 
 
@@ -126,13 +124,15 @@ def get_user_infos(pubkey):
 
 def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
+    get_user(pubkey)
     try:
         user_details = get_user_infos(pubkey)
     except UserNotFound:
         user_details = {}
     user_details.update(kwargs)
     user_details['pubkey'] = pubkey
-    del user_details['timestamp']
+    if 'timestamp' in user_details:
+        del user_details['timestamp']
 
     with SQL_CONNECTION() as sql:
         sql.execute("INSERT INTO internal_user_infos ({}) VALUES ({})".format(
