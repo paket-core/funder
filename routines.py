@@ -1,6 +1,7 @@
 """Routines for processing users purchases"""
 import requests
 
+import util.conversion
 import util.logger
 
 import db
@@ -18,16 +19,6 @@ class BalanceError(Exception):
     """Can't get balance for specified address"""
 
 
-def get_lumen_price(currency):
-    """Get lumen price in BTC/ETH (satoshi or weis actually)"""
-    assert currency in ['BTC', 'ETH'], 'currency must be BTC or ETH'
-    digits = 10 ** 8 if currency == 'BTC' else 10 ** 18
-    url = 'https://bb.otcbtc.com/api/v2/tickers/xlm{}'.format(currency.lower())
-    response = requests.get(url)
-    price = float(response.json()['ticker']['buy']) * digits
-    return price
-
-
 def get_currency_price(id_, convert):
     """
     Get crypto currency price in specified fiat currency.
@@ -36,7 +27,8 @@ def get_currency_price(id_, convert):
     url = 'https://api.coinmarketcap.com/v2/ticker/{}/?convert={}'.format(id_, convert)
     response = requests.get(url)
     price = response.json()['data']['quotes'][convert]['price']
-    return price
+    # we need to cast to string because API returns price as float number
+    return str(price)
 
 
 def get_btc_balance(address):
@@ -72,11 +64,19 @@ def get_balance(address, network):
 def currency_to_euro_cents(currency, amount):
     """Convert amount of coins in specified currency to euro cents"""
     assert currency in ['BTC', 'ETH'], 'currency must be BTC or ETH'
-    # multiply to 100 for getting price in euro_cents
-    id_, digits = (BTC_ID, 10 ** 8) if currency == 'BTC' else (ETH_ID, 10 ** 18)
-    # multiplying by 100 because we want to get price in euro cents
-    price = get_currency_price(id_, 'EUR') * 100
-    return amount * price / digits
+    id_, decimals = (BTC_ID, util.conversion.BTC_DECIMALS) if currency == 'BTC' else (
+        ETH_ID, util.conversion.ETH_DECIMALS)
+    eur_price = get_currency_price(id_, 'EUR')
+    price_decimals = len(eur_price.split('.')[1])
+    # price in fictitious units (portions of euro cents) by 1 indivisible unit of specified crypto currency
+    fictitious_units_price = util.conversion.divisible_to_indivisible(
+        eur_price, price_decimals, numeric_representation=True)
+    euro_cents = fictitious_units_price * amount
+    # minus two because initial price was in EUR and we want euro cents
+    euro_cents = util.conversion.indivisible_to_divisible(
+        euro_cents, price_decimals + decimals - 2, numeric_representation=True)
+    # integer part of result will be amount of euro cents
+    return int(euro_cents)
 
 
 def check_purchases_addresses():

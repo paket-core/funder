@@ -8,5 +8,9 @@ def basic_kyc(name, address, phone):
     name_score = csl_list_checker.score_name(name)
     address_score = csl_list_checker.score_address(address)
     phone_score = csl_list_checker.score_phone(phone)
-    average = sum([name_score[0], address_score[0], phone_score]) / 3
-    return 0 if average > 0.85 else 1
+    # if any of scorred parameters is greater than 0.85 then we can
+    # assuredly say: user is scummer
+    if any((score > .85 for score in (name_score, address_score, phone_score))):
+        return 0
+    average = sum((name_score, address_score, phone_score)) / 3
+    return 0 if average > 0.75 else 1
