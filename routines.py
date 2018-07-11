@@ -1,6 +1,7 @@
 """Routines for processing users purchases"""
 import requests
 
+import paket_stellar
 import util.conversion
 import util.logger
 
@@ -79,6 +80,30 @@ def currency_to_euro_cents(currency, amount):
     return int(euro_cents)
 
 
+def replenish_account(user_pubkey, amount, asset_code):
+    """Replenish account with XLM or BUL"""
+    assert asset_code in ['XLM', 'BUL'], 'asset must be XLM or BUL'
+    amount = util.conversion.stroops_to_units(amount)
+    builder = paket_stellar.stellar_base.builder.Builder(
+        horizon=paket_stellar.HORIZON, secret=paket_stellar.ISSUER_SEED)
+    if asset_code == 'BUL':
+        builder.append_payment_op(user_pubkey, amount, paket_stellar.BUL_TOKEN_CODE, paket_stellar.ISSUER)
+    else:
+        builder.append_payment_op(user_pubkey, amount)
+    builder.sign()
+    paket_stellar.submit(builder)
+
+
+def create_new_account(user_pubkey, amount):
+    """Create new Stellar account and send specified amount of XLM to it"""
+    amount = util.conversion.stroops_to_units(amount)
+    builder = paket_stellar.stellar_base.builder.Builder(
+        horizon=paket_stellar.HORIZON, secret=paket_stellar.ISSUER_SEED)
+    builder.append_create_account_op(user_pubkey, amount)
+    builder.sign()
+    paket_stellar.submit(builder)
+
+
 def check_purchases_addresses():
     """Check purchases addresses and set paid status correspondingly to balance"""
     purchases = db.get_unpaid()
@@ -99,7 +124,25 @@ def send_requested_currency():
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
         monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
         remaining_monthly_allowance = monthly_allowance - monthly_expanses
-        euro_to_charge = min(euro_cents_balance, remaining_monthly_allowance)
-        if euro_to_charge:
-            # TODO: place code for sending BULs or XLM to user accoutn here
-            db.update_purchase(purchase['payment_pubkey'], 2)
+        euro_to_replenish = min(euro_cents_balance, remaining_monthly_allowance)
+        # TODO: add code for BUL/XLM amount calculation
+        replenish_amount = 50000000
+        if euro_to_replenish:
+            try:
+                account = paket_stellar.get_bul_account(purchase['user_pubkey'])
+                # TODO: add code for checking account's BUL limit
+                replenish_account(purchase['user_pubkey'], replenish_amount, purchase['requested_currency'])
+                LOGGER.info("{} replenished with {} {}".format(
+                    purchase['user_pubkey'], replenish_amount, purchase['requested_currency']))
+                db.update_purchase(purchase['payment_pubkey'], 2)
+            except AssertionError as exc:
+                exc_message = str(exc)
+                if exc_message == "no account found for {}".format(purchase['payment_pubkey']):
+                    create_new_account(purchase['user_pubkey'], replenish_amount)
+                    LOGGER.info("{} created and replenished with {} {}".format(
+                        purchase['user_pubkey'], replenish_amount, purchase['requested_currency']))
+                    db.update_purchase(purchase['payment_pubkey'], 2)
+                if exc_message == "account {} does not trust {} from {}".format(
+                        purchase['user_pubkey'], paket_stellar.BUL_TOKEN_CODE, paket_stellar.ISSUER):
+                    LOGGER.warning(exc_message)
+                    db.update_purchase(purchase['payment_pubkey'], -1)
