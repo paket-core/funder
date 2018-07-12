@@ -81,27 +81,17 @@ def currency_to_euro_cents(currency, amount):
 
 
 def fund_account(user_pubkey, amount, asset_code):
-    """Replenish account with XLM or BUL"""
+    """Fund account with XLM or BUL"""
     assert asset_code in ['XLM', 'BUL'], 'asset must be XLM or BUL'
-    amount = util.conversion.stroops_to_units(amount)
-    builder = paket_stellar.stellar_base.builder.Builder(
-        horizon=paket_stellar.HORIZON, secret=paket_stellar.ISSUER_SEED)
-    if asset_code == 'BUL':
-        builder.append_payment_op(user_pubkey, amount, paket_stellar.BUL_TOKEN_CODE, paket_stellar.ISSUER)
-    else:
-        builder.append_payment_op(user_pubkey, amount)
-    builder.sign()
-    paket_stellar.submit(builder)
+    prepare_function = paket_stellar.prepare_send_buls if asset_code == 'BUL' else paket_stellar.prepare_send_lumens
+    prepared_transaction = prepare_function(paket_stellar.ISSUER, user_pubkey, amount)
+    paket_stellar.submit_transaction_envelope(prepared_transaction, paket_stellar.ISSUER_SEED)
 
 
 def create_new_account(user_pubkey, amount):
     """Create new Stellar account and send specified amount of XLM to it"""
-    amount = util.conversion.stroops_to_units(amount)
-    builder = paket_stellar.stellar_base.builder.Builder(
-        horizon=paket_stellar.HORIZON, secret=paket_stellar.ISSUER_SEED)
-    builder.append_create_account_op(user_pubkey, amount)
-    builder.sign()
-    paket_stellar.submit(builder)
+    prepared_transaction = paket_stellar.prepare_create_account(paket_stellar.ISSUER, user_pubkey, amount)
+    paket_stellar.submit_transaction_envelope(prepared_transaction, paket_stellar.ISSUER_SEED)
 
 
 def check_purchases_addresses():
