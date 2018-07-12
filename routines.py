@@ -80,7 +80,7 @@ def currency_to_euro_cents(currency, amount):
     return int(euro_cents)
 
 
-def replenish_account(user_pubkey, amount, asset_code):
+def fund_account(user_pubkey, amount, asset_code):
     """Replenish account with XLM or BUL"""
     assert asset_code in ['XLM', 'BUL'], 'asset must be XLM or BUL'
     amount = util.conversion.stroops_to_units(amount)
@@ -126,23 +126,27 @@ def send_requested_currency():
         remaining_monthly_allowance = monthly_allowance - monthly_expanses
         euro_to_replenish = min(euro_cents_balance, remaining_monthly_allowance)
         # TODO: add code for BUL/XLM amount calculation
-        replenish_amount = 50000000
+        fund_amount = 50000000
         if euro_to_replenish:
-            try:
-                account = paket_stellar.get_bul_account(purchase['user_pubkey'])
-                # TODO: add code for checking account's BUL limit
-                replenish_account(purchase['user_pubkey'], replenish_amount, purchase['requested_currency'])
-                LOGGER.info("{} replenished with {} {}".format(
-                    purchase['user_pubkey'], replenish_amount, purchase['requested_currency']))
-                db.update_purchase(purchase['payment_pubkey'], 2)
-            except AssertionError as exc:
-                exc_message = str(exc)
-                if exc_message == "no account found for {}".format(purchase['payment_pubkey']):
-                    create_new_account(purchase['user_pubkey'], replenish_amount)
-                    LOGGER.info("{} created and replenished with {} {}".format(
-                        purchase['user_pubkey'], replenish_amount, purchase['requested_currency']))
+            if purchase['requested_currency'] == 'BUL':
+                try:
+                    account = paket_stellar.get_bul_account(purchase['user_pubkey'])
+                    if account['bul_balance']['balance'] + fund_amount > account['bul_balance']['limit']:
+                        # TODO: add proper message about trust limit
+                        LOGGER.error("".format())
+                        db.update_purchase(purchase['payment_pubkey'], -1)
+                    fund_account(purchase['user_pubkey'], fund_amount, 'BUL')
+                    LOGGER.info("{} funded with {} BUL".format(purchase['user_pubkey'], fund_amount))
                     db.update_purchase(purchase['payment_pubkey'], 2)
-                if exc_message == "account {} does not trust {} from {}".format(
-                        purchase['user_pubkey'], paket_stellar.BUL_TOKEN_CODE, paket_stellar.ISSUER):
-                    LOGGER.warning(exc_message)
+                except paket_stellar.TrustError as exc:
+                    LOGGER.error(str(exc))
                     db.update_purchase(purchase['payment_pubkey'], -1)
+            else:
+                try:
+                    account = paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
+                    fund_account(purchase['user_pubkey'], fund_amount, 'XLM')
+                    LOGGER.info("{} funded with {} XLM".format(purchase['user_pubkey'], fund_amount))
+                except paket_stellar.stellar_base.address.AccountNotExistError:
+                    LOGGER.info("account {} does not exist and will be created")
+                    create_new_account(purchase['user_pubkey'], fund_amount)
+                db.update_purchase(purchase['payment_pubkey'], 2)
