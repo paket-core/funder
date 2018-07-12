@@ -123,10 +123,10 @@ def send_requested_currency():
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'])
                     if account['bul_balance']['balance'] + fund_amount > account['bul_balance']['limit']:
                         # TODO: add proper message about trust limit
-                        LOGGER.error("".format())
+                        LOGGER.error("")
                         db.update_purchase(purchase['payment_pubkey'], -1)
                     fund_account(purchase['user_pubkey'], fund_amount, 'BUL')
-                    LOGGER.info("{} funded with {} BUL".format(purchase['user_pubkey'], fund_amount))
+                    LOGGER.info("%s funded with %s BUL", purchase['user_pubkey'], fund_amount)
                     db.update_purchase(purchase['payment_pubkey'], 2)
                 except paket_stellar.TrustError as exc:
                     LOGGER.error(str(exc))
@@ -135,8 +135,8 @@ def send_requested_currency():
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
                     fund_account(purchase['user_pubkey'], fund_amount, 'XLM')
-                    LOGGER.info("{} funded with {} XLM".format(purchase['user_pubkey'], fund_amount))
+                    LOGGER.info("%s funded with %s XLM", purchase['user_pubkey'], fund_amount)
                 except paket_stellar.stellar_base.address.AccountNotExistError:
-                    LOGGER.info("account {} does not exist and will be created")
+                    LOGGER.info("account %s does not exist and will be created", purchase['user_pubkey'])
                     create_new_account(purchase['user_pubkey'], fund_amount)
                 db.update_purchase(purchase['payment_pubkey'], 2)
