@@ -72,12 +72,27 @@ def currency_to_euro_cents(currency, amount):
     # price in fictitious units (portions of euro cents) by 1 indivisible unit of specified crypto currency
     fictitious_units_price = util.conversion.divisible_to_indivisible(
         eur_price, price_decimals, numeric_representation=True)
-    euro_cents = fictitious_units_price * amount
+    fictitious_units_amount = fictitious_units_price * amount
     # minus two because initial price was in EUR and we want euro cents
     euro_cents = util.conversion.indivisible_to_divisible(
-        euro_cents, price_decimals + decimals - 2, numeric_representation=True)
+        fictitious_units_amount, price_decimals + decimals - 2, numeric_representation=True)
+    LOGGER.warning("precision loss: %s converted to %s", euro_cents, int(euro_cents))
     # integer part of result will be amount of euro cents
     return int(euro_cents)
+
+
+def euro_cents_to_stroops(euro_cents_amount):
+    """Convert amount of euro cents to stroops"""
+    eur_price = get_currency_price(XLM_ID, 'EUR')
+    price_decimals = len(eur_price.split('.')[1])
+    fictitious_units_amount = util.conversion.divisible_to_indivisible(
+        euro_cents_amount, util.conversion.STELLAR_DECIMALS + price_decimals, numeric_representation=True)
+    fictitious_units_price = util.conversion.divisible_to_indivisible(
+        eur_price, price_decimals + 2, numeric_representation=True)
+    stroops = fictitious_units_amount // fictitious_units_price
+    LOGGER.warning("precision loss: %s / %s = %s", fictitious_units_amount, fictitious_units_price, stroops)
+    return stroops
+
 
 
 def fund_account(user_pubkey, amount, asset_code):
@@ -114,13 +129,12 @@ def send_requested_currency():
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
         monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
         remaining_monthly_allowance = monthly_allowance - monthly_expanses
-        euro_to_replenish = min(euro_cents_balance, remaining_monthly_allowance)
-        # TODO: add code for BUL/XLM amount calculation
-        fund_amount = 50000000
-        if euro_to_replenish:
+        euro_to_fund = min(euro_cents_balance, remaining_monthly_allowance)
+        if euro_to_fund:
             if purchase['requested_currency'] == 'BUL':
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'])
+                    fund_amount = euro_to_fund * 1000000
                     if account['bul_balance']['balance'] + fund_amount > account['bul_balance']['limit']:
                         # TODO: add proper message about trust limit
                         LOGGER.error("")
@@ -134,9 +148,13 @@ def send_requested_currency():
             else:
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
+                    fund_amount = euro_cents_to_stroops(euro_to_fund)
                     fund_account(purchase['user_pubkey'], fund_amount, 'XLM')
                     LOGGER.info("%s funded with %s XLM", purchase['user_pubkey'], fund_amount)
                 except paket_stellar.stellar_base.address.AccountNotExistError:
                     LOGGER.info("account %s does not exist and will be created", purchase['user_pubkey'])
                     create_new_account(purchase['user_pubkey'], fund_amount)
                 db.update_purchase(purchase['payment_pubkey'], 2)
+
+
+euro_cents_to_stroops(100)
