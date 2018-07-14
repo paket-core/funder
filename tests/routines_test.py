@@ -1,50 +1,98 @@
 """Tests for routines module"""
 import unittest
+import web3
 
+import paket_stellar
 import util.logger
+import eth_utils
 
 import db
 import routines
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.test')
+USERS_NUMBER = 6
+TIMEOUT = 360
 
 
 class RoutinesTest(unittest.TestCase):
     """Test for routines"""
 
+    def __init__(self, *args, **argv):
+        super().__init__(*args, **argv)
+        self.eth_funder_seed = '4cdd30299b14203ba2289d6706acbf5e093fce6e170a48f3621c28d38f4ed20d'
+        self.eth_node = 'https://ropsten.infura.io/9S2cUwgCk4jYKYG85rxJ'
+
     @classmethod
     def setUpClass(cls):
         """Create tables if they does not exists"""
+
+    def setUp(self):
+        """Clear table and refill them with new data"""
         try:
             LOGGER.info('creating tables...')
             db.init_db()
         except db.util.db.mysql.connector.ProgrammingError:
             LOGGER.info('tables already exists')
-
-    def setUp(self):
-        """Insert data into tables"""
         db.util.db.clear_tables(db.SQL_CONNECTION, db.DB_NAME)
-        db.create_user('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ', 'callsign1')
-        db.create_user('GBLZA2SZ3XJLCFYKW7TF6Q7FAMA4WJUOZN6J6WM3Z676W3JOJDQ6CEKE', 'callsign2')
-        db.create_user('GBD5666CDBM6MS3RKXLO5WOXVJXECOCLBAE6B62XMNKZLF63GC6V3IB5', 'callsign3')
-        db.create_user('GC2QTLYQXYFEOFQ26QNEDZR5VQVHLQPCXA5S4JU64OMW5IXFF5J4L52Z', 'callsign4')
-        db.create_user('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR', 'callsign5')
-        db.update_test('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ', 'basic', 1)
-        db.update_test('GBLZA2SZ3XJLCFYKW7TF6Q7FAMA4WJUOZN6J6WM3Z676W3JOJDQ6CEKE', 'basic', 0)
-        db.update_test('GBD5666CDBM6MS3RKXLO5WOXVJXECOCLBAE6B62XMNKZLF63GC6V3IB5', 'basic', 1)
-        db.update_test('GC2QTLYQXYFEOFQ26QNEDZR5VQVHLQPCXA5S4JU64OMW5IXFF5J4L52Z', 'basic', 0)
-        db.update_test('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR', 'basic', 1)
-        address = db.get_payment_address('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ', 600, 'BTC', 'BUL')
-        db.get_payment_address('GAPAVB6IW4UNQTP4XFSRF4L6PS2XZD22IG6Z6FV6FXGZV7T3VL4TOAYQ', 500, 'ETH', 'BUL')
-        db.get_payment_address('GBD5666CDBM6MS3RKXLO5WOXVJXECOCLBAE6B62XMNKZLF63GC6V3IB5', 100, 'ETH', 'BUL')
-        db.get_payment_address('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR', 1200, 'ETH', 'BUL')
-        db.get_payment_address('GDZYRJQTZ7LG2MIJJ35MTY55D7MTM7RV533KNBGXSU47Q5DMGLDXONBR', 800, 'BTC', 'XLM')
-        db.update_purchase(address, 1)
+
+        for number in range(USERS_NUMBER):
+            new_keypair = paket_stellar.get_keypair()
+            db.create_user(new_keypair.address(), 'callsign_{}'.format(number))
+            if number % 2 == 0:
+                routines.create_new_account(new_keypair.address(), 50000000)
+            db.set_internal_user_info(new_keypair.address(),
+                                      full_name='Full Name', phone_number='+4134976443', address='address')
+
+    def purchase(self, payment_address, amount, network):
+        """Send amount of coins to specified address"""
+        assert network == 'ETH', 'only ETH available for purchasing now'
+        account = web3.Account.privateKeyToAccount(self.eth_funder_seed)
+        w3 = web3.Web3(web3.HTTPProvider(self.eth_node))
+        nonce = w3.eth.getTransactionCount(account.address)
+        transaction = {
+            'to': eth_utils.to_checksum_address(payment_address),
+            'gas': 90000,
+            'gasPrice': web3.Web3.toWei(5, 'gwei'),
+            'value': amount,
+            'nonce': nonce,
+            'chainId': 3
+        }
+        signed = account.signTransaction(transaction)
+        transaction_hash = w3.eth.sendRawTransaction(signed.rawTransaction)
+        try:
+            w3.eth.waitForTransactionReceipt(transaction_hash, TIMEOUT)
+            return True
+        except web3.utils.threads.Timeout:
+            return False
 
     def test_check_purchases_addresses(self):
         """Test for check_purchases_addresses routine"""
+        users = db.get_users()
+        full_paid_addresses = [
+            db.get_payment_address(users['callsign_0']['pubkey'], 500, 'ETH', 'XLM'),
+            db.get_payment_address(users['callsign_1']['pubkey'], 500, 'ETH', 'BUL')
+        ]
+        half_paid_addresses = [
+            db.get_payment_address(users['callsign_2']['pubkey'], 500, 'ETH', 'BUL'),
+            db.get_payment_address(users['callsign_3']['pubkey'], 500, 'ETH', 'XLM')
+        ]
+        for address in full_paid_addresses:
+            self.purchase(address, 15 * 10 ** 16, 'ETH')
+        for address in half_paid_addresses:
+            self.purchase(address, 1 * 10 ** 16, 'ETH')
+
         routines.check_purchases_addresses()
-        # TODO: add checks for result
+        purchases = db.get_unpaid()
+
+        for purchase in purchases:
+            if purchase['payment_pubkey'] in full_paid_addresses:
+                self.assertEqual(purchase['paid'], 1,
+                                 "purchase with full funded address %s has unpaid status" % purchase['payment_pubkey'])
+            if (purchase['payment_pubkey'] not in full_paid_addresses or
+                        purchase['payment_pubkey'] in half_paid_addresses):
+                self.assertEqual(purchase['paid'], 0,
+                                 "purchase without full funded address %s"
+                                 "has wrong paid status: %s" % (purchase['payment_pubkey'], purchase['paid']))
 
     def test_send_requested_currency(self):
         """Test for send_requested_currency"""
