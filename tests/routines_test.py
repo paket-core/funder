@@ -1,10 +1,10 @@
 """Tests for routines module"""
 import unittest
 import web3
+import eth_utils
 
 import paket_stellar
 import util.logger
-import eth_utils
 
 import db
 import routines
@@ -46,9 +46,10 @@ class RoutinesTest(unittest.TestCase):
     def purchase(self, payment_address, amount, network):
         """Send amount of coins to specified address"""
         assert network == 'ETH', 'only ETH available for purchasing now'
+        # pylint: disable=no-value-for-parameter,no-member
         account = web3.Account.privateKeyToAccount(self.eth_funder_seed)
-        w3 = web3.Web3(web3.HTTPProvider(self.eth_node))
-        nonce = w3.eth.getTransactionCount(account.address)
+        web3_api = web3.Web3(web3.HTTPProvider(self.eth_node))
+        nonce = web3_api.eth.getTransactionCount(account.address)
         transaction = {
             'to': eth_utils.to_checksum_address(payment_address),
             'gas': 90000,
@@ -58,12 +59,13 @@ class RoutinesTest(unittest.TestCase):
             'chainId': 3
         }
         signed = account.signTransaction(transaction)
-        transaction_hash = w3.eth.sendRawTransaction(signed.rawTransaction)
+        transaction_hash = web3_api.eth.sendRawTransaction(signed.rawTransaction)
         try:
-            w3.eth.waitForTransactionReceipt(transaction_hash, TIMEOUT)
+            web3_api.eth.waitForTransactionReceipt(transaction_hash, TIMEOUT)
             return True
         except web3.utils.threads.Timeout:
             return False
+        # pylint: enable=no-value-for-parameter,no-member
 
     def test_check_purchases_addresses(self):
         """Test for check_purchases_addresses routine"""
@@ -89,7 +91,7 @@ class RoutinesTest(unittest.TestCase):
                 self.assertEqual(purchase['paid'], 1,
                                  "purchase with full funded address %s has unpaid status" % purchase['payment_pubkey'])
             if (purchase['payment_pubkey'] not in full_paid_addresses or
-                        purchase['payment_pubkey'] in half_paid_addresses):
+                    purchase['payment_pubkey'] in half_paid_addresses):
                 self.assertEqual(purchase['paid'], 0,
                                  "purchase without full funded address %s"
                                  "has wrong paid status: %s" % (purchase['payment_pubkey'], purchase['paid']))
@@ -97,7 +99,6 @@ class RoutinesTest(unittest.TestCase):
     def test_send_requested_currency(self):
         """Test for send_requested_currency"""
         routines.send_requested_currency()
-        # TODO: add checks for result
 
 
 class BalanceTest(unittest.TestCase):
