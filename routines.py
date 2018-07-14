@@ -94,7 +94,6 @@ def euro_cents_to_stroops(euro_cents_amount):
     return stroops
 
 
-
 def fund_account(user_pubkey, amount, asset_code):
     """Fund account with XLM or BUL"""
     assert asset_code in ['XLM', 'BUL'], 'asset must be XLM or BUL'
@@ -144,7 +143,7 @@ def send_requested_currency():
                                      " balance: %s limit: %s amount to fund: %s", purchase['user_pubkey'],
                                      account['bul_balance']['balance'], account['bul_balance']['limit'], fund_amount)
                         db.update_purchase(purchase['payment_pubkey'], -1)
-                except paket_stellar.TrustError as exc:
+                except (paket_stellar.TrustError, paket_stellar.stellar_base.exceptions.AccountNotExistError) as exc:
                     LOGGER.error(str(exc))
                     db.update_purchase(purchase['payment_pubkey'], -1)
             else:

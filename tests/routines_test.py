@@ -21,10 +21,7 @@ class RoutinesTest(unittest.TestCase):
         super().__init__(*args, **argv)
         self.eth_funder_seed = '4cdd30299b14203ba2289d6706acbf5e093fce6e170a48f3621c28d38f4ed20d'
         self.eth_node = 'https://ropsten.infura.io/9S2cUwgCk4jYKYG85rxJ'
-
-    @classmethod
-    def setUpClass(cls):
-        """Create tables if they does not exists"""
+        self.actual_keypairs = {}
 
     def setUp(self):
         """Clear table and refill them with new data"""
@@ -35,6 +32,7 @@ class RoutinesTest(unittest.TestCase):
             LOGGER.info('tables already exists')
         db.util.db.clear_tables(db.SQL_CONNECTION, db.DB_NAME)
 
+        self.actual_keypairs.clear()
         for number in range(USERS_NUMBER):
             new_keypair = paket_stellar.get_keypair()
             db.create_user(new_keypair.address(), 'callsign_{}'.format(number))
@@ -42,6 +40,7 @@ class RoutinesTest(unittest.TestCase):
                 routines.create_new_account(new_keypair.address(), 50000000)
             db.set_internal_user_info(new_keypair.address(),
                                       full_name='Full Name', phone_number='+4134976443', address='address')
+            self.actual_keypairs[new_keypair.address().decode()] = new_keypair.seed().decode()
 
     def purchase(self, payment_address, amount, network):
         """Send amount of coins to specified address"""
@@ -67,6 +66,11 @@ class RoutinesTest(unittest.TestCase):
             return False
         # pylint: enable=no-value-for-parameter,no-member
 
+    def set_trust(self, pubkey, seed, limit=None):
+        """Set trust limit for pubkey"""
+        prepared_transaction = routines.paket_stellar.prepare_trust(pubkey, limit)
+        routines.paket_stellar.submit_transaction_envelope(prepared_transaction, seed)
+
     def test_check_purchases_addresses(self):
         """Test for check_purchases_addresses routine"""
         users = db.get_users()
@@ -85,7 +89,7 @@ class RoutinesTest(unittest.TestCase):
 
         routines.check_purchases_addresses()
         purchases = db.get_unpaid()
-
+        self.assertNotEqual(len(purchases), 0)
         for purchase in purchases:
             if purchase['payment_pubkey'] in full_paid_addresses:
                 self.assertEqual(purchase['paid'], 1,
@@ -98,7 +102,28 @@ class RoutinesTest(unittest.TestCase):
 
     def test_send_requested_currency(self):
         """Test for send_requested_currency"""
+        users = db.get_users()
+        successful_address = [
+            db.get_payment_address(users['callsign_0']['pubkey'], 500, 'ETH', 'XLM'),
+            db.get_payment_address(users['callsign_1']['pubkey'], 500, 'ETH', 'XLM'),
+            db.get_payment_address(users['callsign_2']['pubkey'], 500, 'ETH', 'BUL')
+        ]
+        failed_address = [
+            db.get_payment_address(users['callsign_3']['pubkey'], 500, 'ETH', 'BUL'),
+            db.get_payment_address(users['callsign_4']['pubkey'], 500, 'ETH', 'BUL'),
+            db.get_payment_address(users['callsign_5']['pubkey'], 500, 'ETH', 'BUL')
+        ]
+        routines.create_new_account(users['callsign_5']['pubkey'], 50000000)
+        self.set_trust(users['callsign_5']['pubkey'], self.actual_keypairs[users['callsign_5']['pubkey']], 1000000)
+        self.set_trust(users['callsign_2']['pubkey'], self.actual_keypairs[users['callsign_2']['pubkey']])
+        for address in successful_address + failed_address:
+            self.purchase(address, 15 * 10 ** 16, 'ETH')
+
+        routines.check_purchases_addresses()
         routines.send_requested_currency()
+        purchases = db.get_paid()
+        self.assertEqual(len(purchases), 0)
+        # TODO: add code for checking purcahse status
 
 
 class BalanceTest(unittest.TestCase):
