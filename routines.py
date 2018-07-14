@@ -135,19 +135,21 @@ def send_requested_currency():
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'])
                     fund_amount = euro_to_fund * 1000000
-                    if account['bul_balance']['balance'] + fund_amount > account['bul_balance']['limit']:
-                        # TODO: add proper message about trust limit
-                        LOGGER.error("")
+                    if account['bul_balance']['balance'] + fund_amount <= account['bul_balance']['limit']:
+                        fund_account(purchase['user_pubkey'], fund_amount, 'BUL')
+                        LOGGER.info("%s funded with %s BUL", purchase['user_pubkey'], fund_amount)
+                        db.update_purchase(purchase['payment_pubkey'], 2)
+                    else:
+                        LOGGER.error("account %s need to set higher limit for BUL."
+                                     " balance: %s limit: %s amount to fund: %s", purchase['user_pubkey'],
+                                     account['bul_balance']['balance'], account['bul_balance']['limit'], fund_amount)
                         db.update_purchase(purchase['payment_pubkey'], -1)
-                    fund_account(purchase['user_pubkey'], fund_amount, 'BUL')
-                    LOGGER.info("%s funded with %s BUL", purchase['user_pubkey'], fund_amount)
-                    db.update_purchase(purchase['payment_pubkey'], 2)
                 except paket_stellar.TrustError as exc:
                     LOGGER.error(str(exc))
                     db.update_purchase(purchase['payment_pubkey'], -1)
             else:
                 try:
-                    account = paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
+                    paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
                     fund_amount = euro_cents_to_stroops(euro_to_fund)
                     fund_account(purchase['user_pubkey'], fund_amount, 'XLM')
                     LOGGER.info("%s funded with %s XLM", purchase['user_pubkey'], fund_amount)
@@ -155,6 +157,3 @@ def send_requested_currency():
                     LOGGER.info("account %s does not exist and will be created", purchase['user_pubkey'])
                     create_new_account(purchase['user_pubkey'], fund_amount)
                 db.update_purchase(purchase['payment_pubkey'], 2)
-
-
-euro_cents_to_stroops(100)
