@@ -119,7 +119,7 @@ def get_user_infos(pubkey):
                 key.decode('utf8') if isinstance(key, bytes) else key: val
                 for key, val in sql.fetchall()[0].items()}
         except IndexError:
-            raise UserNotFound("user with pubkey {} does not exists".format(pubkey))
+            return {}
 
 
 def set_internal_user_info(pubkey, **kwargs):
