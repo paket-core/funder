@@ -123,7 +123,14 @@ class RoutinesTest(unittest.TestCase):
         routines.send_requested_currency()
         purchases = db.get_paid()
         self.assertEqual(len(purchases), 0)
-        # TODO: add code for checking purcahse status
+        for purchase in db.get_purchases():
+            if purchase['payment_pubkey'] in successful_address:
+                self.assertEqual(purchase['paid'], 2, "purchase with address: {} has paid status: {} but expected: 2".
+                                 format(purchase['payment_pubkey'], purchase['paid']))
+            if purchase['payment_pubkey'] in failed_address:
+                self.assertEqual(purchase['paid'], -1, "purchase with address: {} has paid status: {} but expected: -1".
+                                 format(purchase['payment_pubkey'], purchase['paid']))
+
 
 
 class BalanceTest(unittest.TestCase):

@@ -194,6 +194,13 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
     return payment_pubkey
 
 
+def get_purchases():
+    """Get all purchases"""
+    with SQL_CONNECTION() as sql:
+        sql.execute('SELECT * FROM purchases')
+        return sql.fetchall()
+
+
 def get_unpaid():
     """Get all unpaid addresses."""
     with SQL_CONNECTION() as sql:
