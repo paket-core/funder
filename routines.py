@@ -70,15 +70,13 @@ def currency_to_euro_cents(currency, amount):
     eur_price = get_currency_price(id_, 'EUR')
     price_decimals = len(eur_price.split('.')[1])
     # price in fictitious units (portions of euro cents) by 1 indivisible unit of specified crypto currency
-    fictitious_units_price = util.conversion.divisible_to_indivisible(
-        eur_price, price_decimals, numeric_representation=True)
+    fictitious_units_price = util.conversion.divisible_to_indivisible(eur_price, price_decimals)
     fictitious_units_amount = fictitious_units_price * amount
     # minus two because initial price was in EUR and we want euro cents
-    euro_cents = util.conversion.indivisible_to_divisible(
-        fictitious_units_amount, price_decimals + decimals - 2, numeric_representation=True)
-    LOGGER.warning("precision loss: %s converted to %s", euro_cents, int(euro_cents))
+    euro_cents = util.conversion.indivisible_to_divisible(fictitious_units_amount, price_decimals + decimals - 2)
+    LOGGER.warning("precision loss: %s converted to %s", euro_cents, round(float(euro_cents)))
     # integer part of result will be amount of euro cents
-    return int(euro_cents)
+    return round(float(euro_cents))
 
 
 def euro_cents_to_stroops(euro_cents_amount):
@@ -86,9 +84,8 @@ def euro_cents_to_stroops(euro_cents_amount):
     eur_price = get_currency_price(XLM_ID, 'EUR')
     price_decimals = len(eur_price.split('.')[1])
     fictitious_units_amount = util.conversion.divisible_to_indivisible(
-        euro_cents_amount, util.conversion.STELLAR_DECIMALS + price_decimals, numeric_representation=True)
-    fictitious_units_price = util.conversion.divisible_to_indivisible(
-        eur_price, price_decimals + 2, numeric_representation=True)
+        euro_cents_amount, util.conversion.STELLAR_DECIMALS + price_decimals)
+    fictitious_units_price = util.conversion.divisible_to_indivisible(eur_price, price_decimals + 2)
     stroops = fictitious_units_amount // fictitious_units_price
     LOGGER.warning("precision loss: %s / %s = %s", fictitious_units_amount, fictitious_units_price, stroops)
     return stroops
@@ -114,7 +111,7 @@ def check_purchases_addresses():
     for purchase in purchases:
         LOGGER.info("checking address %s", purchase['payment_pubkey'])
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-        euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], int(balance))
+        euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], round(float(balance)))
         if euro_cents_balance >= db.MINIMUM_MONTHLY_ALLOWANCE:
             db.update_purchase(purchase['payment_pubkey'], 1)
 
@@ -124,7 +121,7 @@ def send_requested_currency():
     purchases = db.get_paid()
     for purchase in purchases:
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-        euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], int(balance))
+        euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], round(float(balance)))
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
         monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
         remaining_monthly_allowance = monthly_allowance - monthly_expanses
@@ -134,14 +131,14 @@ def send_requested_currency():
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'])
                     fund_amount = euro_to_fund * 1000000
-                    if account['bul_balance']['balance'] + fund_amount <= account['bul_balance']['limit']:
+                    if account['bul_balance'] + fund_amount <= account['bul_limit']:
                         fund_account(purchase['user_pubkey'], fund_amount, 'BUL')
                         LOGGER.info("%s funded with %s BUL", purchase['user_pubkey'], fund_amount)
                         db.update_purchase(purchase['payment_pubkey'], 2)
                     else:
                         LOGGER.error("account %s need to set higher limit for BUL."
                                      " balance: %s limit: %s amount to fund: %s", purchase['user_pubkey'],
-                                     account['bul_balance']['balance'], account['bul_balance']['limit'], fund_amount)
+                                     account['bul_balance'], account['bul_limit'], fund_amount)
                         db.update_purchase(purchase['payment_pubkey'], -1)
                 except (paket_stellar.TrustError, paket_stellar.stellar_base.exceptions.AccountNotExistError) as exc:
                     LOGGER.error(str(exc))
