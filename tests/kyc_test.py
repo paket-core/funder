@@ -10,6 +10,7 @@ LOGGER = util.logger.logging.getLogger('pkt.funder.test')
 
 
 class KYCTest(unittest.TestCase):
+    """Test KYC functionality."""
 
     def test_scammer(self):
         """Test kyc result on scammer's data"""

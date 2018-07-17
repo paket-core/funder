@@ -151,6 +151,7 @@ class DBTest(unittest.TestCase):
                               'created payment address does not present among unpaid purchases')
 
     def test_update_purchase(self):
+        """Test purchase updating."""
         pubkey, call_sign = 'pubkey', 'call_sign'
         self.internal_test_create_user(pubkey, call_sign)
         db.update_test(pubkey, 'basic', 1)

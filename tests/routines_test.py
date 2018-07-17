@@ -132,7 +132,6 @@ class RoutinesTest(unittest.TestCase):
                                  format(purchase['payment_pubkey'], purchase['paid']))
 
 
-
 class BalanceTest(unittest.TestCase):
     """Test getting balance for ETH/BTC addresses"""
 
