@@ -69,15 +69,3 @@ class ClsReaderTest(unittest.TestCase):
         for name in self.names:
             score = self.csl.score_name(name)
             LOGGER.info("name: %s   score:%.2f", name, score)
-
-    def test_addresses(self):
-        """Test addresses"""
-        for address in self.addresses:
-            score = self.csl.score_address(address)
-            LOGGER.info("address: %s   score:%.2f", address, score)
-
-    def test_phones(self):
-        """Test phones"""
-        for phone in self.phones:
-            score = self.csl.score_phone(phone)
-            LOGGER.info("phone: %s   score:%.2f", phone, score)

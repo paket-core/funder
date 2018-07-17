@@ -117,34 +117,3 @@ class CSLListChecker:
         :return: score based on fuzzy search
         """
         return cls.score(name, 'name', 'alt_names')
-
-    @classmethod
-    def score_address(cls, address):
-        """
-        calculate risk score for an address - from 0 (no fit) to 1 (address found).
-        :param address: address to look for.
-        :return: score based on fuzzy search
-        """
-        top_score = 0.0
-        programs = ''
-        search_query = address.lower()
-        for row in cls.all_rows:
-            search_string = row['addresses']
-            ratio = fuzzywuzzy.fuzz.ratio(search_query, search_string) / 100
-            partial_ratio = fuzzywuzzy.fuzz.partial_ratio(search_query, search_string) / 100
-
-            # score is based on partial fuzzy search plus a small factor for full search
-            fuzzy_score = min(1.0, .95 * partial_ratio + ratio / 5)
-            if fuzzy_score > .6 and fuzzy_score > top_score:
-                top_score = fuzzy_score
-        return top_score
-
-    @classmethod
-    def score_phone(cls, phone):
-        """
-        calculate risk score for an phone number - from 0 (no fit) to 1 (phone number found).
-        :param phone: phone to look for
-        :return: score based on fuzzy search
-        """
-        # it is just mock-up
-        return .5
