@@ -55,7 +55,7 @@ def get_eth_balance(address):
     url = 'https://api-ropsten.etherscan.io/api'
     response = requests.get(url, params=params).json()
     if response['message'] == 'OK':
-        return response['result']
+        return int(response['result'])
     raise BalanceError(response['result'])
 
 
@@ -113,7 +113,7 @@ def check_purchases_addresses():
     for purchase in purchases:
         LOGGER.info("checking address %s", purchase['payment_pubkey'])
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-        euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], round(float(balance)))
+        euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], balance)
         if euro_cents_balance >= db.MINIMUM_MONTHLY_ALLOWANCE:
             db.update_purchase(purchase['payment_pubkey'], 1)
 
@@ -123,7 +123,7 @@ def send_requested_currency():
     purchases = db.get_paid()
     for purchase in purchases:
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-        euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], round(float(balance)))
+        euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], balance)
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
         monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
         remaining_monthly_allowance = monthly_allowance - monthly_expanses
