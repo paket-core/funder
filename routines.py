@@ -128,9 +128,9 @@ def send_requested_currency():
         euro_to_fund = min(euro_cents_balance, remaining_monthly_allowance)
         if euro_to_fund:
             if purchase['requested_currency'] == 'BUL':
+                fund_amount = euro_to_fund * 1000000
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'])
-                    fund_amount = euro_to_fund * 1000000
                     if account['bul_balance'] + fund_amount <= account['bul_limit']:
                         fund_account(purchase['user_pubkey'], fund_amount, 'BUL')
                         LOGGER.info("%s funded with %s BUL", purchase['user_pubkey'], fund_amount)
@@ -144,9 +144,9 @@ def send_requested_currency():
                     LOGGER.error(str(exc))
                     db.update_purchase(purchase['payment_pubkey'], -1)
             else:
+                fund_amount = euro_cents_to_stroops(euro_to_fund)
                 try:
                     paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
-                    fund_amount = euro_cents_to_stroops(euro_to_fund)
                     fund_account(purchase['user_pubkey'], fund_amount, 'XLM')
                     LOGGER.info("%s funded with %s XLM", purchase['user_pubkey'], fund_amount)
                 except paket_stellar.stellar_base.address.AccountNotExistError:
