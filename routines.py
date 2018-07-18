@@ -9,6 +9,8 @@ import db
 
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
+# one euro cent costs 0.1 BUL (1000000 stroops)
+BULS_PER_EURO = 1000000
 ETHERSCAN_API_KEY = '6KYNDD61K9YA9CX1NWUPVWCVFJN24K9QV5'
 # currencies ids on coinmarketcap.com
 XLM_ID = 512
@@ -128,7 +130,7 @@ def send_requested_currency():
         euro_to_fund = min(euro_cents_balance, remaining_monthly_allowance)
         if euro_to_fund:
             if purchase['requested_currency'] == 'BUL':
-                fund_amount = euro_to_fund * 1000000
+                fund_amount = euro_to_fund * BULS_PER_EURO
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'])
                     if account['bul_balance'] + fund_amount <= account['bul_limit']:
