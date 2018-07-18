@@ -147,7 +147,8 @@ class BalanceTest(unittest.TestCase):
 # pylint: disable=no-self-use
     def test_btc_address(self):
         """Test balance with valid BTC address"""
-        routines.get_btc_balance('2N6WqqshyxoWuBGHLjbwnWAQSigJ4TJkYrt')
+        balance = routines.get_btc_balance('2N6WqqshyxoWuBGHLjbwnWAQSigJ4TJkYrt')
+        self.assertGreater(balance, -1, "balance has wrong value: {}".format(balance))
 
     def test_invalid_btc_address(self):
         """Test balance with invalid BTC address"""
@@ -156,7 +157,8 @@ class BalanceTest(unittest.TestCase):
 
     def test_eth_address(self):
         """Test balance with valid ETH address"""
-        routines.get_eth_balance('0xce85247b032f7528ba97396f7b17c76d5d034d2f')
+        balance = routines.get_eth_balance('0xce85247b032f7528ba97396f7b17c76d5d034d2f')
+        self.assertGreater(balance, -1, "balance has wrong value: {}".format(balance))
 
     def test_invalid_eth_address(self):
         """Test balance with invalid ETH address"""
