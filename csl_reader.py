@@ -19,6 +19,8 @@ import util.countly
 
 util.logger.setup()
 LOGGER = util.logger.logging.getLogger('pkt.funder.csl')
+EXACT_MATCH_WEIGHT = 5
+FUZZY_MATCH_WEIGHT = .95
 
 
 class CSLListChecker:
@@ -95,7 +97,7 @@ class CSLListChecker:
             partial_ratio = fuzzywuzzy.fuzz.partial_ratio(search_query, search_string) / 100
 
             # score is based on partial fuzzy search plus a small factor for full search
-            fuzzy_score = min(1.0, .95 * partial_ratio + ratio / 5)
+            fuzzy_score = min(1.0, FUZZY_MATCH_WEIGHT * partial_ratio + ratio / EXACT_MATCH_WEIGHT)
             if fuzzy_score > .6 and fuzzy_score > top_score:
                 # print("SC: %.2f %.2f n:%s str:%s" % (partial_ratio, ratio, name, search_string))
                 top_score = fuzzy_score
