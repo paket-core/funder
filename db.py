@@ -124,26 +124,29 @@ def get_user_infos(pubkey):
 
 def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
+    # Verify user exists.
     get_user(pubkey)
     try:
         user_details = get_user_infos(pubkey)
     except UserNotFound:
         user_details = {}
-    user_details.update(kwargs)
-    user_details['pubkey'] = pubkey
-    if 'timestamp' in user_details:
-        del user_details['timestamp']
 
-    with SQL_CONNECTION() as sql:
-        sql.execute("INSERT INTO internal_user_infos ({}) VALUES ({})".format(
-            ', '.join(user_details.keys()), ', '.join(['%s' for key in user_details])
-        ), (list(user_details.values())))
+    if kwargs:
+        user_details.update(kwargs)
+        user_details['pubkey'] = pubkey
+        if 'timestamp' in user_details:
+            del user_details['timestamp']
+        with SQL_CONNECTION() as sql:
+            sql.execute("INSERT INTO internal_user_infos ({}) VALUES ({})".format(
+                ', '.join(user_details.keys()), ', '.join(['%s' for key in user_details])
+            ), (list(user_details.values())))
 
-    if user_details.get('full_name') and user_details.get('phone_number') and user_details.get('address'):
-        basic_kyc_result = kyc.basic_kyc(user_details['full_name'])
-        update_test(pubkey, 'basic', basic_kyc_result)
+        # Run basic test as soon as (and every time) all basic details are filled.
+        if user_details.get('full_name') and user_details.get('phone_number') and user_details.get('address'):
+            basic_kyc_result = kyc.basic_kyc(user_details['full_name'])
+            update_test(pubkey, 'basic', basic_kyc_result)
 
-    return get_user_infos(pubkey)
+    return user_details
 
 
 def get_monthly_allowance(pubkey):
