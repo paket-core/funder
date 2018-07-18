@@ -14,13 +14,24 @@ USERS_NUMBER = 6
 TIMEOUT = 360
 
 
+def set_trust(pubkey, seed, limit=None):
+    """Set trust limit for pubkey"""
+    LOGGER.info("setting trust limit: %s for address: %s", limit, pubkey)
+    prepared_transaction = routines.paket_stellar.prepare_trust(pubkey, limit)
+    routines.paket_stellar.submit_transaction_envelope(prepared_transaction, seed)
+
+
 class RoutinesTest(unittest.TestCase):
     """Test for routines"""
 
     def __init__(self, *args, **argv):
         super().__init__(*args, **argv)
-        self.eth_funder_seed = '4cdd30299b14203ba2289d6706acbf5e093fce6e170a48f3621c28d38f4ed20d'
-        self.eth_node = 'https://ropsten.infura.io/9S2cUwgCk4jYKYG85rxJ'
+        # pylint: disable=no-value-for-parameter
+        # pylint thinks web3-py insists on some useless kwargs here.
+        self.eth_account = web3.Account.privateKeyToAccount(
+            '4cdd30299b14203ba2289d6706acbf5e093fce6e170a48f3621c28d38f4ed20d')
+        self.web3_api = web3.Web3(web3.HTTPProvider('https://ropsten.infura.io/9S2cUwgCk4jYKYG85rxJ'))
+        # pylint: enable=no-value-for-parameter
         self.actual_keypairs = {}
 
     def setUp(self):
@@ -33,10 +44,12 @@ class RoutinesTest(unittest.TestCase):
         db.util.db.clear_tables(db.SQL_CONNECTION, db.DB_NAME)
 
         self.actual_keypairs.clear()
+        LOGGER.info('generating new keypairs...')
         for number in range(USERS_NUMBER):
             new_keypair = paket_stellar.get_keypair()
             db.create_user(new_keypair.address(), 'callsign_{}'.format(number))
             if number % 2 == 0:
+                LOGGER.info("creating account for address: %s", new_keypair.address())
                 routines.create_new_account(new_keypair.address(), 50000000)
             db.set_internal_user_info(new_keypair.address(),
                                       full_name='Full Name', phone_number='+4134976443', address='address')
@@ -45,10 +58,9 @@ class RoutinesTest(unittest.TestCase):
     def purchase(self, payment_address, amount, network):
         """Send amount of coins to specified address"""
         assert network == 'ETH', 'only ETH available for purchasing now'
-        # pylint: disable=no-value-for-parameter,no-member
-        account = web3.Account.privateKeyToAccount(self.eth_funder_seed)
-        web3_api = web3.Web3(web3.HTTPProvider(self.eth_node))
-        nonce = web3_api.eth.getTransactionCount(account.address)
+        # pylint: disable=no-member
+        LOGGER.info("purchasing %s with %s units", payment_address, amount)
+        nonce = self.web3_api.eth.getTransactionCount(self.eth_account.address)
         transaction = {
             'to': eth_utils.to_checksum_address(payment_address),
             'gas': 90000,
@@ -57,19 +69,16 @@ class RoutinesTest(unittest.TestCase):
             'nonce': nonce,
             'chainId': 3
         }
-        signed = account.signTransaction(transaction)
-        transaction_hash = web3_api.eth.sendRawTransaction(signed.rawTransaction)
+        signed = self.eth_account.signTransaction(transaction)
+        transaction_hash = self.web3_api.eth.sendRawTransaction(signed.rawTransaction)
         try:
-            web3_api.eth.waitForTransactionReceipt(transaction_hash, TIMEOUT)
+            self.web3_api.eth.waitForTransactionReceipt(transaction_hash, TIMEOUT)
             return True
         except web3.utils.threads.Timeout:
+            LOGGER.error(
+                "Transaction %s was not accepted by network, further tests will be irrelevant", transaction_hash)
             return False
-        # pylint: enable=no-value-for-parameter,no-member
-
-    def set_trust(self, pubkey, seed, limit=None):
-        """Set trust limit for pubkey"""
-        prepared_transaction = routines.paket_stellar.prepare_trust(pubkey, limit)
-        routines.paket_stellar.submit_transaction_envelope(prepared_transaction, seed)
+        # pylint: enable=no-member
 
     def test_check_purchases_addresses(self):
         """Test for check_purchases_addresses routine"""
@@ -114,8 +123,8 @@ class RoutinesTest(unittest.TestCase):
             db.get_payment_address(users['callsign_5']['pubkey'], 500, 'ETH', 'BUL')
         ]
         routines.create_new_account(users['callsign_5']['pubkey'], 50000000)
-        self.set_trust(users['callsign_5']['pubkey'], self.actual_keypairs[users['callsign_5']['pubkey']], 1000000)
-        self.set_trust(users['callsign_2']['pubkey'], self.actual_keypairs[users['callsign_2']['pubkey']])
+        set_trust(users['callsign_5']['pubkey'], self.actual_keypairs[users['callsign_5']['pubkey']], 1000000)
+        set_trust(users['callsign_2']['pubkey'], self.actual_keypairs[users['callsign_2']['pubkey']])
         for address in successful_address + failed_address:
             self.purchase(address, 15 * 10 ** 16, 'ETH')
 
@@ -135,9 +144,11 @@ class RoutinesTest(unittest.TestCase):
 class BalanceTest(unittest.TestCase):
     """Test getting balance for ETH/BTC addresses"""
 
+# pylint: disable=no-self-use
     def test_btc_address(self):
         """Test balance with valid BTC address"""
-        routines.get_btc_balance('2N6WqqshyxoWuBGHLjbwnWAQSigJ4TJkYrt')
+        balance = routines.get_btc_balance('2N6WqqshyxoWuBGHLjbwnWAQSigJ4TJkYrt')
+        self.assertGreater(balance, -1, "balance has wrong value: {}".format(balance))
 
     def test_invalid_btc_address(self):
         """Test balance with invalid BTC address"""
@@ -146,9 +157,11 @@ class BalanceTest(unittest.TestCase):
 
     def test_eth_address(self):
         """Test balance with valid ETH address"""
-        routines.get_eth_balance('0xce85247b032f7528ba97396f7b17c76d5d034d2f')
+        balance = routines.get_eth_balance('0xce85247b032f7528ba97396f7b17c76d5d034d2f')
+        self.assertGreater(balance, -1, "balance has wrong value: {}".format(balance))
 
     def test_invalid_eth_address(self):
         """Test balance with invalid ETH address"""
         with self.assertRaises(routines.BalanceError):
             routines.get_eth_balance('invalid_address')
+# pylint: enable=no-self-use
