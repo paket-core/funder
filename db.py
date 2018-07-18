@@ -126,11 +126,8 @@ def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
     # Verify user exists.
     get_user(pubkey)
-    try:
-        user_details = get_user_infos(pubkey)
-    except UserNotFound:
-        user_details = {}
 
+    user_details = get_user_infos(pubkey)
     if kwargs:
         user_details.update(kwargs)
         user_details['pubkey'] = pubkey
