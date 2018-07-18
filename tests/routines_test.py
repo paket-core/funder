@@ -27,6 +27,7 @@ class RoutinesTest(unittest.TestCase):
     def __init__(self, *args, **argv):
         super().__init__(*args, **argv)
         # pylint: disable=no-value-for-parameter
+        # pylint thinks web3-py insists on some useless kwargs here.
         self.eth_account = web3.Account.privateKeyToAccount(
             '4cdd30299b14203ba2289d6706acbf5e093fce6e170a48f3621c28d38f4ed20d')
         self.web3_api = web3.Web3(web3.HTTPProvider('https://ropsten.infura.io/9S2cUwgCk4jYKYG85rxJ'))
