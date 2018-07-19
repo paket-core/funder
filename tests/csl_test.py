@@ -69,3 +69,18 @@ class ClsReaderTest(unittest.TestCase):
         for name in self.names:
             score = self.csl.score_name(name)
             LOGGER.info("name: %s   score:%.2f", name, score)
+
+
+
+class CslTesterTest(unittest.TestCase):
+    """Test CSL tests."""
+
+    def test_scammer(self):
+        """Test kyc result on scammer's data"""
+        name = 'Youssef Ben Abdul Baki'
+        self.assertEqual(csl_reader.CSLListChecker().basic_test(name), -1, 'scammer passed kyc')
+
+    def test_fair(self):
+        """Test kyc on fair person's data"""
+        name = 'Sherlock Holmes'
+        self.assertEqual(csl_reader.CSLListChecker().basic_test(name), 0, 'fair user does not pass kyc')
