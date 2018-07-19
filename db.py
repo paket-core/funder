@@ -5,8 +5,10 @@ import time
 
 import pywallet.wallet
 
-import kyc
 import util.db
+
+import csl_reader
+
 
 LOGGER = logging.getLogger('pkt.funder.db')
 SEED = ('client ancient calm uncover opinion coil priority misery empty favorite moment myth')
@@ -140,7 +142,7 @@ def set_internal_user_info(pubkey, **kwargs):
 
         # Run basic test as soon as (and every time) all basic details are filled.
         if all([user_details.get(key) for key in ['full_name', 'phone_number', 'address']]):
-            update_test(pubkey, 'basic', kyc.basic_kyc(user_details['full_name']))
+            update_test(pubkey, 'basic', csl_reader.CSLListChecker().basic_test(user_details['full_name']))
 
     return user_details
 
