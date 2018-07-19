@@ -59,6 +59,7 @@ class RoutinesTest(unittest.TestCase):
         """Send amount of coins to specified address"""
         assert network == 'ETH', 'only ETH available for purchasing now'
         # pylint: disable=no-member
+        # Pylint has a hard time recognizing web3 members.
         LOGGER.info("purchasing %s with %s units", payment_address, amount)
         nonce = self.web3_api.eth.getTransactionCount(self.eth_account.address)
         transaction = {
