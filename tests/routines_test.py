@@ -92,9 +92,9 @@ class RoutinesTest(unittest.TestCase):
             db.get_payment_address(users['callsign_3']['pubkey'], 500, 'ETH', 'XLM')
         ]
         for address in full_paid_addresses:
-            self.purchase(address, 15 * 10 ** 16, 'ETH')
+            self.purchase(address, 14 * 10 ** 15, 'ETH')
         for address in half_paid_addresses:
-            self.purchase(address, 1 * 10 ** 16, 'ETH')
+            self.purchase(address, 1 * 10 ** 15, 'ETH')
 
         routines.check_purchases_addresses()
         purchases = db.get_unpaid()
@@ -126,7 +126,7 @@ class RoutinesTest(unittest.TestCase):
         set_trust(users['callsign_5']['pubkey'], self.actual_keypairs[users['callsign_5']['pubkey']], 1000000)
         set_trust(users['callsign_2']['pubkey'], self.actual_keypairs[users['callsign_2']['pubkey']])
         for address in successful_address + failed_address:
-            self.purchase(address, 15 * 10 ** 16, 'ETH')
+            self.purchase(address, 14 * 10 ** 15, 'ETH')
 
         routines.check_purchases_addresses()
         routines.send_requested_currency()
