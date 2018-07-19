@@ -35,9 +35,8 @@ Security
 ========
 Our calls are split into the following security levels:
  - Debug functions: require no authentication, available only in debug mode.
- - Anonymous functions: require no authentication.
- - Authenticated functions: require asymmetric key authentication. Not tested
-   in debug mode.
+ - Anonymous functions: require no authentication, used to retrieve public data.
+ - Authenticated functions: require asymmetric key authentication:
     - The 'Pubkey' header will contain the user's pubkey.
     - The 'Fingerprint' header is constructed from the comma separated
       concatenation of the called URI, all the arguments (as key=value), and an
@@ -45,6 +44,13 @@ Our calls are split into the following security levels:
     - The 'Signature' header will contain the signature of the key specified in
       the 'Pubkey' header on the fingerprint specified in the 'Fingerprint'
       header, encoded to Base64 ASCII.
+
+Note that the security headers are not validated when in debug mode, but the
+server still expects some values to be passed.
+
+Currency Denomination
+=====================
+All currency amounts are denominated in integers of their indivisible units. That means that when referring to an amount of EUR we will always use EUR cents (1/100 EUR), when referring to Stellar assets (BUL and XLM) we will be using stroops (1/10**7 XLM or BUL), when referring to BTC we will use satoshis (1/10**8 BTC), and when referring to ETH we will use wei (1/10**18 ETH).
 
 The API
 ======='''}}
@@ -82,16 +88,6 @@ USER_INFOS = {
         '201': {'description': 'user details set'},
         '400': {'description': 'invalid user info'},
         '404': {'description': 'user not found'}}}
-
-CREATE_STELLAR_ACCOUNT = {
-    'parameters': [
-        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'payment_currency', 'in': 'formData', 'type': 'string', 'required': True}],
-    'responses': {
-        '201': {'description': 'payment address generated'},
-        '403': {'description': 'user not authorized'}}}
 
 PURCHASE_XLM = {
     'parameters': [

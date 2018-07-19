@@ -14,6 +14,7 @@ LOGGER = util.logger.logging.getLogger('pkt.funding.routes')
 VERSION = swagger_specs.CONFIG['info']['version']
 BLUEPRINT = flask.Blueprint('funding', __name__)
 
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
 
 @BLUEPRINT.route("/v{}/create_user".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.CREATE_USER)
@@ -21,14 +22,11 @@ BLUEPRINT = flask.Blueprint('funding', __name__)
 def create_user_handler(user_pubkey, call_sign, **kwargs):
     """
     Create a user in the system.
-    This function will return 400 if the pubkey or the call_sign are not unique.
     """
-    try:
-        db.create_user(user_pubkey, call_sign)
+    db.create_user(user_pubkey, call_sign)
+    if kwargs:
         db.set_internal_user_info(user_pubkey, **kwargs)
-        return {'status': 201, 'user': db.get_user(user_pubkey)}
-    except AssertionError as exception:
-        return {'status': 400, 'error': str(exception)}
+    return {'status': 201, 'user': db.get_user(user_pubkey)}
 
 
 @BLUEPRINT.route("/v{}/get_user".format(VERSION), methods=['POST'])
@@ -38,10 +36,7 @@ def get_user_handler(pubkey=None, call_sign=None):
     """
     Get user details.
     """
-    try:
-        return {'status': 200, 'user': db.get_user(pubkey=pubkey, call_sign=call_sign)}
-    except db.UserNotFound as exception:
-        return {'status': 404, 'error': str(exception)}
+    return {'status': 200, 'user': db.get_user(pubkey=pubkey, call_sign=call_sign)}
 
 
 @BLUEPRINT.route("/v{}/user_infos".format(VERSION), methods=['POST'])
@@ -51,23 +46,7 @@ def user_infos_handler(user_pubkey, **kwargs):
     """
     Set user details.
     """
-    try:
-        return {'status': 200, 'user_details': db.set_internal_user_info(user_pubkey, **kwargs)}
-    except AssertionError as exception:
-        return {'status': 400, 'error': str(exception)}
-    except db.UserNotFound as exception:
-        return {'status': 404, 'error': str(exception)}
-
-
-@BLUEPRINT.route("/v{}/create_stellar_account".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.CREATE_STELLAR_ACCOUNT)
-@webserver.validation.call(['payment_currency'], require_auth=True)
-def create_stellar_account_handler(user_pubkey, payment_currency):
-    """
-    Request the creation of a Stellar account.
-    Returns an address to send ETH or BTC to.
-    """
-    return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, 500, payment_currency, 'XLM')}
+    return {'status': 200, 'user_details': db.set_internal_user_info(user_pubkey, **kwargs)}
 
 
 @BLUEPRINT.route("/v{}/purchase_xlm".format(VERSION), methods=['POST'])

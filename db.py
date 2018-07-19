@@ -21,7 +21,7 @@ MINIMUM_MONTHLY_ALLOWANCE = 5000
 BASIC_MONTHLY_ALLOWANCE = 10000
 
 
-class UserNotFound(Exception):
+class UnknownUser(Exception):
     """Requested user does not exist."""
 
 
@@ -85,7 +85,7 @@ def get_user(pubkey=None, call_sign=None):
         try:
             return sql.fetchall()[0]
         except IndexError:
-            raise UserNotFound("user with {} {} does not exists".format(*condition))
+            raise UnknownUser("user with {} {} does not exists".format(*condition))
 
 
 def update_test(pubkey, test_name, result=None):
@@ -95,7 +95,7 @@ def update_test(pubkey, test_name, result=None):
             sql.execute("INSERT INTO test_results (pubkey, name, result) VALUES (%s, %s, %s)", (
                 pubkey, test_name, result))
         except util.db.mysql.connector.IntegrityError:
-            raise UserNotFound("no user with pubkey {}".format(pubkey))
+            raise UnknownUser("no user with pubkey {}".format(pubkey))
 
 
 def get_test_result(pubkey, test_name):
