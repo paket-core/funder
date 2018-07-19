@@ -41,7 +41,7 @@ class DBTest(unittest.TestCase):
 
     def internal_test_nonexistent(self, pubkey):
         """Test a non existing user."""
-        with self.assertRaises(db.UserNotFound) as exception_context:
+        with self.assertRaises(db.UnknownUser) as exception_context:
             db.get_user(pubkey)
         self.assertEqual(
             str(exception_context.exception), "user with pubkey {} does not exists".format(pubkey),
