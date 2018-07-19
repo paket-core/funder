@@ -19,6 +19,7 @@ import util.countly
 
 util.logger.setup()
 LOGGER = util.logger.logging.getLogger('pkt.funder.csl')
+NAME_THRESHOLD = 0.83
 EXACT_MATCH_WEIGHT = 5
 FUZZY_MATCH_WEIGHT = .95
 
@@ -119,3 +120,8 @@ class CSLListChecker:
         :return: score based on fuzzy search
         """
         return cls.score(name, 'name', 'alt_names')
+
+    @classmethod
+    def basic_test(cls, name):
+        """Return -1 for fail and 1 for pass."""
+        return -1 if cls.score_name(name) > NAME_THRESHOLD else 1
