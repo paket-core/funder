@@ -139,9 +139,8 @@ def set_internal_user_info(pubkey, **kwargs):
             ), (list(user_details.values())))
 
         # Run basic test as soon as (and every time) all basic details are filled.
-        if user_details.get('full_name') and user_details.get('phone_number') and user_details.get('address'):
-            basic_kyc_result = kyc.basic_kyc(user_details['full_name'])
-            update_test(pubkey, 'basic', basic_kyc_result)
+        if all([user_details.get(key) for key in ['full_name', 'phone_number', 'address']]):
+            update_test(pubkey, 'basic', kyc.basic_kyc(user_details['full_name']))
 
     return user_details
 
@@ -162,17 +161,6 @@ def get_monthly_expanses(pubkey):
             return sql.fetchall()[0][b'euro_cents'] or 0
         except TypeError:
             return 0
-
-
-def get_users():
-    """Get list of users and their details - for debug only."""
-    with SQL_CONNECTION() as sql:
-        sql.execute('SELECT * FROM users')
-        return {user['call_sign']: dict(
-            get_user_infos(user['pubkey']),
-            monthly_allowance=get_monthly_allowance(user['pubkey']),
-            monthly_expanses=get_monthly_expanses(user['pubkey'])
-        ) for user in sql.fetchall()}
 
 
 def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_currency):
@@ -219,3 +207,12 @@ def update_purchase(payment_pubkey, paid_status):
     """Update purchase status"""
     with SQL_CONNECTION() as sql:
         sql.execute("UPDATE purchases SET paid = %s WHERE payment_pubkey = %s", (paid_status, payment_pubkey))
+def get_users():
+    """Get list of users and their details - for debug only."""
+    with SQL_CONNECTION() as sql:
+        sql.execute('SELECT * FROM users')
+        return {user['call_sign']: dict(
+            get_user_infos(user['pubkey']),
+            monthly_allowance=get_monthly_allowance(user['pubkey']),
+            monthly_expanses=get_monthly_expanses(user['pubkey'])
+        ) for user in sql.fetchall()}
