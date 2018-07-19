@@ -7,7 +7,6 @@ import util.logger
 
 util.logger.setup()
 LOGGER = util.logger.logging.getLogger('pkt.issue')
-
 DEBUG = True
 TOTAL_SUPPLY = 10**9 * 10**7
 ISSUER_KEYPAIR = paket_stellar.get_keypair(seed=os.environ['ISSUER_SEED'])
