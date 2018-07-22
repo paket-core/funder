@@ -209,6 +209,8 @@ def update_purchase(payment_pubkey, paid_status):
     """Update purchase status"""
     with SQL_CONNECTION() as sql:
         sql.execute("UPDATE purchases SET paid = %s WHERE payment_pubkey = %s", (paid_status, payment_pubkey))
+
+
 def get_users():
     """Get list of users and their details - for debug only."""
     with SQL_CONNECTION() as sql:
