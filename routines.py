@@ -9,7 +9,6 @@ import util.logger
 
 import db
 
-
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
 # one euro cent costs 0.1 BUL (1000000 stroops)
 BULS_PER_EURO = 1000000
