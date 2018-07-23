@@ -152,10 +152,10 @@ class GetUserTest(BaseRoutesTests):
             keypair.seed(), call_sign='another call sign')
 
 
-class GetUserInfosTest(BaseRoutesTests):
+class UserInfosTest(BaseRoutesTests):
     """Test for user_infos endpoint."""
 
-    def test_user_infos(self):
+    def test_with_user_creation(self):
         """Test for getting user infos."""
         keypair = paket_stellar.get_keypair()
         call_sign = 'test_user'
@@ -176,6 +176,36 @@ class GetUserInfosTest(BaseRoutesTests):
         self.assertEqual(
             user_infos['address'], address, "stored address: {} does not match given: {}".format(
                 user_infos['address'], address))
+
+    def test_adding_portions(self):
+        """Test for adding info by portions."""
+        keypair = paket_stellar.get_keypair()
+        call_sign = 'test_user'
+        self.internal_test_create_user(keypair, call_sign)
+        user_details = {
+            'full_name': 'Kapitoshka Vodyanovych',
+            'phone_number': '+380 67 13 666',
+            'address': 'Vulychna 14, Trypillya'
+        }
+        passed_details = {}
+        for key, value in user_details.items():
+            stored_user_details = self.call(
+                'user_infos', 200, "could not add new user's detail: {}={}".format(key, value),
+                keypair.seed(), **{key: value})['user_details']
+            passed_details[key] = value
+            for detail_name, detail_value in passed_details.items():
+                self.assertIn(
+                    detail_name, stored_user_details, "user details does not contails new detail: {}={}".format(
+                        detail_name, detail_value))
+                self.assertEqual(
+                    stored_user_details[detail_name],
+                    detail_value, "new added detail: {} does not match given: {}".format(
+                        stored_user_details[detail_name], detail_value))
+                test_result = db.get_test_result(keypair.address().decode(), 'basic')
+                self.assertEqual(
+                    test_result, 1 if len(passed_details) == 3 else 0,
+                    "got unexpected test result: {} for user with details: {}".format(
+                        test_result, ''.join(["{}={}".format(key, value) for key, value in passed_details.items()])))
 
 
 class PurchaseXlmTest(BaseRoutesTests):
