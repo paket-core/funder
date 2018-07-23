@@ -16,7 +16,7 @@ APP.testing = True
 
 
 class BaseRoutesTests(unittest.TestCase):
-    """Base class for all routes tests"""
+    """Base class for all routes tests."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -24,44 +24,74 @@ class BaseRoutesTests(unittest.TestCase):
         self.host = 'http://localhost'
         LOGGER.info('init done')
 
-    def call(self, path, expected_code=None, fail_message=None, **kwargs):
+    def setUp(self):
+        """Clear table and refill them with new data"""
+        try:
+            LOGGER.info('creating tables...')
+            db.init_db()
+        except db.util.db.mysql.connector.ProgrammingError:
+            LOGGER.info('tables already exists')
+        db.util.db.clear_tables(db.SQL_CONNECTION, db.DB_NAME)
+
+    def call(self, path, expected_code=None, fail_message=None, seed=None, **kwargs):
         """Post data to API server."""
         LOGGER.info("calling %s", path)
-        response = self.app.post("/v{}/{}".format(routes.VERSION, path), data=kwargs)
+        if seed:
+            fingerprint = webserver.validation.generate_fingerprint(
+                "{}/v{}/{}".format(self.host, routes.VERSION, path), kwargs)
+            signature = webserver.validation.sign_fingerprint(fingerprint, seed)
+            headers = {
+                'Pubkey': paket_stellar.get_keypair(seed=seed).address().decode(),
+                'Fingerprint': fingerprint, 'Signature': signature}
+        else:
+            headers = None
+        response = self.app.post("/v{}/{}".format(routes.VERSION, path), headers=headers, data=kwargs)
         response = dict(real_status_code=response.status_code, **json.loads(response.data.decode()))
         if expected_code:
             self.assertEqual(response['real_status_code'], expected_code, "{} ({})".format(
                 fail_message, response.get('error')))
         return response
 
+    def internal_test_create_user(self, call_sign, **kwargs):
+        """Create user"""
+        keypair = paket_stellar.get_keypair()
+        pubkey = keypair.address().decode()
+        seed = keypair.seed()
+        user = self.call(
+            'create_user', 201, 'could not create user', seed,
+            user_pubkey=pubkey, call_sign=call_sign, **kwargs)['user']
+        self.assertEqual(user['pubkey'], pubkey,
+                         "pubkey of created user: {} does not match given: {}".format(user['pubkey'], pubkey))
+        self.assertEqual(user['call_sign'], call_sign,
+                         "call sign of created user: {} does not match given: {}".format(user['call_sign'], call_sign))
+        return user
 
-class RoutesTest(BaseRoutesTests):
-    """Test for routes"""
+
+class CreateUserTest(BaseRoutesTests):
+    """Test for create_user endpoint."""
 
     def test_create_user(self):
         """Test create user"""
-        keypair = paket_stellar.get_keypair()
-        pubkey = keypair.address().decode()
         call_sign = 'test_user'
-        user = self.call('create_user', 200, 'could not create user', user_pubkey=pubkey, call_sign=call_sign)
-        self.assertEqual(user['user_pubkey'], pubkey, '')
+        self.internal_test_create_user(call_sign)
         users = db.get_users()
-        self.assertEqual(len(users), 1, '')
-        self.assertEqual(user['user_pubkey'], users[0]['user_pubkey'], '')
-        self.assertEqual(user['call_sign'], users[0]['call_sign'])
+        self.assertEqual(len(users), 1, "number of existing users: {} should be 1".format(len(users)))
 
     def test_create_with_infos(self):
         """Test create user with provided user info"""
-        keypair = paket_stellar.get_keypair()
-        pubkey = keypair.address().decode()
         call_sign = 'test_user'
         full_name = 'Kapitoshka Vodyanovych'
         phone_number = '+380 67 13 666'
         address = 'Vulychna 14, Trypillya'
-        user = self.call('create_user', 200, 'could not create user', user_pubkey=pubkey,
-                         call_sign=call_sign, full_name=full_name, phone_number=phone_number, address=address)
-        self.assertEqual(user['user_pubkey'], pubkey, '')
-        user_infos = db.get_user_infos(pubkey)
-        self.assertEqual(user_infos['full_name'], full_name, '')
-        self.assertEqual(user_infos['phone_number'], phone_number, '')
-        self.assertEqual(user_infos['address'], address, '')
+        user = self.internal_test_create_user(
+            call_sign, full_name=full_name, phone_number=phone_number, address=address)
+        user_infos = db.get_user_infos(user['pubkey'])
+        self.assertEqual(
+            user_infos['full_name'], full_name,
+            "stored full name: {} does not match given: {}".format(user_infos['full_name'], full_name))
+        self.assertEqual(
+            user_infos['phone_number'], phone_number,
+            "stored phone number: {} does not match given: {}".format(user_infos['phone_number'], phone_number))
+        self.assertEqual(
+            user_infos['address'], address,
+            "stored address: {} does not match given: {}".format(user_infos['address'], address))
