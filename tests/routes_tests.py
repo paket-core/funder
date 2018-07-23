@@ -120,3 +120,29 @@ class GetUserTest(BaseRoutesTests):
         self.assertEqual(
             stored_user['call_sign'], user['call_sign'], "stored user: {} does not match created one: {}".format(
                 stored_user['call_sign'], user['call_sign']))
+
+
+class GetUserInfosTests(BaseRoutesTests):
+    """Test for user_infos endpoint."""
+
+    def test_user_infos(self):
+        """Test for getting user infos."""
+        keypair = paket_stellar.get_keypair()
+        call_sign = 'test_user'
+        full_name = 'Kapitoshka Vodyanovych'
+        phone_number = '+380 67 13 666'
+        address = 'Vulychna 14, Trypillya'
+        self.internal_test_create_user(
+            keypair, call_sign, full_name=full_name, phone_number=phone_number, address=address)
+        user_infos = self.call(
+            'user_infos', 200, 'could not get user infos',
+            seed=keypair.seed(), user_pubkey=keypair.address())['user_details']
+        self.assertEqual(
+            user_infos['full_name'], full_name, "stored full name: {} does not match given: {}".format(
+                user_infos['full_name'], full_name))
+        self.assertEqual(
+            user_infos['phone_number'], phone_number, "stored phone number: {} does not match given: {}".format(
+                user_infos['phone_number'], phone_number))
+        self.assertEqual(
+            user_infos['address'], address, "stored address: {} does not match given: {}".format(
+                user_infos['address'], address))
