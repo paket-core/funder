@@ -140,6 +140,17 @@ class GetUserTest(BaseRoutesTests):
             stored_user['call_sign'], user['call_sign'], "stored user: {} does not match created one: {}".format(
                 stored_user['call_sign'], user['call_sign']))
 
+    def test_get_non_existent_user(self):
+        """Test get user on non existent publik key and call sign."""
+        keypair = paket_stellar.get_keypair()
+        self.internal_test_create_user(keypair, 'call_sign')
+        self.call(
+            'get_user', 404, 'does not get not found status code on non-existed pubkey',
+            keypair.seed(), pubkey='public key')
+        self.call(
+            'get_user', 404, 'does not get not found status code on non-existed call sign',
+            keypair.seed(), call_sign='another call sign')
+
 
 class GetUserInfosTests(BaseRoutesTests):
     """Test for user_infos endpoint."""
