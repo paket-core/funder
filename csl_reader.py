@@ -17,7 +17,6 @@ import requests
 import util.logger
 import util.countly
 
-util.logger.setup()
 LOGGER = util.logger.logging.getLogger('pkt.funder.csl')
 NAME_THRESHOLD = 0.83
 EXACT_MATCH_WEIGHT = 5

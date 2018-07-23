@@ -1,4 +1,6 @@
 """Routines for processing users purchases"""
+import sys
+
 import requests
 
 import paket_stellar
@@ -6,7 +8,6 @@ import util.conversion
 import util.logger
 
 import db
-
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
 # one euro cent costs 0.1 BUL (1000000 stroops)
@@ -155,3 +156,17 @@ def send_requested_currency():
                     LOGGER.info("account %s does not exist and will be created", purchase['user_pubkey'])
                     create_new_account(purchase['user_pubkey'], fund_amount)
                 db.update_purchase(purchase['payment_pubkey'], 2)
+
+
+if __name__ == '__main__':
+    util.logger.setup()
+    try:
+        if sys.argv[1] == 'monitor':
+            check_purchases_addresses()
+            sys.exit(0)
+        if sys.argv[1] == 'pay':
+            send_requested_currency()
+            sys.exit(0)
+    except IndexError:
+        pass
+    print(' Usage: python routines.py [monitor|pay]')

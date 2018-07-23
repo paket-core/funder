@@ -6,7 +6,6 @@ import util.logger
 import db
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.test')
-util.logger.setup()
 
 
 class DBTest(unittest.TestCase):

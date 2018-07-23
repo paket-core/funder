@@ -9,7 +9,6 @@ import util.db
 
 import csl_reader
 
-
 LOGGER = logging.getLogger('pkt.funder.db')
 SEED = ('client ancient calm uncover opinion coil priority misery empty favorite moment myth')
 XPUB = 'tpubD6NzVbkrYhZ4XMSG7EWChwJXwfByid9TdZRVaej1rpDTHV3WamyuApceF5DDZXetx8kbH82NouoazYqPeCEZWWeXHZ1do5LBCe5xMcZYeGe'

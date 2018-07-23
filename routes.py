@@ -1,4 +1,6 @@
 """Routes for Funding Server API."""
+import os
+
 import flasgger
 import flask
 
@@ -8,12 +10,15 @@ import webserver.validation
 import db
 import swagger_specs
 
-util.logger.setup()
 LOGGER = util.logger.logging.getLogger('pkt.funding.routes')
 
 VERSION = swagger_specs.CONFIG['info']['version']
+PORT = os.environ.get('PAKET_FUNDER_PORT', 8001)
 BLUEPRINT = flask.Blueprint('funding', __name__)
 
+
+# Input validators and fixers.
+webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_cents'] = webserver.validation.check_and_fix_natural
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
 
 @BLUEPRINT.route("/v{}/create_user".format(VERSION), methods=['POST'])
@@ -79,3 +84,8 @@ def users_handler():
     List all user details.
     """
     return {'status': 200, 'users': db.get_users()}
+
+
+if __name__ == '__main__':
+    util.logger.setup()
+    webserver.run(BLUEPRINT, swagger_specs.CONFIG, PORT)
