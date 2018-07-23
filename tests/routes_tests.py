@@ -190,6 +190,23 @@ class PurchaseXlmTest(BaseRoutesTests):
         self.internal_test_create_user(
             keypair, 'new_user', full_name=full_name, phone_number=phone_number, address=address)
         # need to add generated address checking
-        result = self.call(
+        self.call(
             'purchase_xlm', 201, 'could not purchase xlm', keypair.seed(),
+            user_pubkey=keypair.address(), euro_cents=500, payment_currency='ETH')
+
+
+class PurchaseBulTest(BaseRoutesTests):
+    """Test for purchase_bul endpoint."""
+
+    def test_purchase(self):
+        """Test for purchasing BUL."""
+        keypair = paket_stellar.get_keypair()
+        full_name = 'New Name'
+        phone_number = '+48 045 237 27 36'
+        address = 'New Address'
+        self.internal_test_create_user(
+            keypair, 'new_user', full_name=full_name, phone_number=phone_number, address=address)
+        # need to add generated address checking
+        self.call(
+            'purchase_bul', 201, 'could not purchase xlm', keypair.seed(),
             user_pubkey=keypair.address(), euro_cents=500, payment_currency='ETH')
