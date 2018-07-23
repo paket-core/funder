@@ -95,3 +95,25 @@ class CreateUserTest(BaseRoutesTests):
         self.assertEqual(
             user_infos['address'], address,
             "stored address: {} does not match given: {}".format(user_infos['address'], address))
+
+
+class GetUserTest(BaseRoutesTests):
+    """Test for get_user endpoint."""
+
+    def test_get_user_by_pubkey(self):
+        """Test get user by pubkey"""
+        call_sign = 'test_user'
+        user = self.internal_test_create_user(call_sign)
+        stored_user = self.call('get_user', 200, 'could not get user', pubkey=user['pubkey'])['user']
+        self.assertEqual(
+            stored_user['pubkey'], user['pubkey'], "stored user: {} does not match created one: {}".format(
+                stored_user['pubkey'], user['pubkey']))
+
+    def test_get_user_by_call_sign(self):
+        """Test get user by call sign"""
+        call_sign = 'test_user'
+        user = self.internal_test_create_user(call_sign)
+        stored_user = self.call('get_user', 200, 'could not get user', call_sign=call_sign)['user']
+        self.assertEqual(
+            stored_user['call_sign'], user['call_sign'], "stored user: {} does not match created one: {}".format(
+                stored_user['call_sign'], user['call_sign']))
