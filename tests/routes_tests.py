@@ -52,9 +52,8 @@ class BaseRoutesTests(unittest.TestCase):
                 fail_message, response.get('error')))
         return response
 
-    def internal_test_create_user(self, call_sign, **kwargs):
+    def internal_test_create_user(self, keypair, call_sign, **kwargs):
         """Create user"""
-        keypair = paket_stellar.get_keypair()
         pubkey = keypair.address().decode()
         seed = keypair.seed()
         user = self.call(
@@ -71,20 +70,22 @@ class CreateUserTest(BaseRoutesTests):
     """Test for create_user endpoint."""
 
     def test_create_user(self):
-        """Test create user"""
+        """Test create user."""
+        keypair = paket_stellar.get_keypair()
         call_sign = 'test_user'
-        self.internal_test_create_user(call_sign)
+        self.internal_test_create_user(keypair, call_sign)
         users = db.get_users()
         self.assertEqual(len(users), 1, "number of existing users: {} should be 1".format(len(users)))
 
     def test_create_with_infos(self):
-        """Test create user with provided user info"""
+        """Test create user with provided user info."""
+        keypair = paket_stellar.get_keypair()
         call_sign = 'test_user'
         full_name = 'Kapitoshka Vodyanovych'
         phone_number = '+380 67 13 666'
         address = 'Vulychna 14, Trypillya'
         user = self.internal_test_create_user(
-            call_sign, full_name=full_name, phone_number=phone_number, address=address)
+            keypair, call_sign, full_name=full_name, phone_number=phone_number, address=address)
         user_infos = db.get_user_infos(user['pubkey'])
         self.assertEqual(
             user_infos['full_name'], full_name,
@@ -101,18 +102,20 @@ class GetUserTest(BaseRoutesTests):
     """Test for get_user endpoint."""
 
     def test_get_user_by_pubkey(self):
-        """Test get user by pubkey"""
+        """Test get user by pubkey."""
+        keypair = paket_stellar.get_keypair()
         call_sign = 'test_user'
-        user = self.internal_test_create_user(call_sign)
+        user = self.internal_test_create_user(keypair, call_sign)
         stored_user = self.call('get_user', 200, 'could not get user', pubkey=user['pubkey'])['user']
         self.assertEqual(
             stored_user['pubkey'], user['pubkey'], "stored user: {} does not match created one: {}".format(
                 stored_user['pubkey'], user['pubkey']))
 
     def test_get_user_by_call_sign(self):
-        """Test get user by call sign"""
+        """Test get user by call sign."""
+        keypair = paket_stellar.get_keypair()
         call_sign = 'test_user'
-        user = self.internal_test_create_user(call_sign)
+        user = self.internal_test_create_user(keypair, call_sign)
         stored_user = self.call('get_user', 200, 'could not get user', call_sign=call_sign)['user']
         self.assertEqual(
             stored_user['call_sign'], user['call_sign'], "stored user: {} does not match created one: {}".format(
