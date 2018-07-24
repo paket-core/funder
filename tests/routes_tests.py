@@ -8,6 +8,7 @@ import webserver
 
 import db
 import routes
+import tests
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.test')
 util.logger.setup()
@@ -25,13 +26,7 @@ class BaseRoutesTests(unittest.TestCase):
         LOGGER.info('init done')
 
     def setUp(self):
-        """Clear table and refill them with new data"""
-        try:
-            LOGGER.info('creating tables...')
-            db.init_db()
-        except db.util.db.mysql.connector.ProgrammingError:
-            LOGGER.info('tables already exists')
-        db.util.db.clear_tables(db.SQL_CONNECTION, db.DB_NAME)
+        tests.init_db()
 
     def call(self, path, expected_code=None, fail_message=None, seed=None, **kwargs):
         """Post data to API server."""

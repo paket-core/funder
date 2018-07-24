@@ -4,6 +4,7 @@ import unittest
 import util.logger
 
 import db
+import tests
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.test')
 
@@ -11,19 +12,8 @@ LOGGER = util.logger.logging.getLogger('pkt.funder.test')
 class DBTest(unittest.TestCase):
     """Testing the database module."""
 
-    @classmethod
-    def setUpClass(cls):
-        """Create tables if they does not exists"""
-        try:
-            LOGGER.info('creating tables...')
-            db.init_db()
-        except db.util.db.mysql.connector.ProgrammingError:
-            LOGGER.info('tables already exists')
-
     def setUp(self):
-        assert db.DB_NAME.startswith('test'), "refusing to test on db named {}".format(db.DB_NAME)
-        LOGGER.info('clearing database')
-        db.util.db.clear_tables(db.SQL_CONNECTION, db.DB_NAME)
+        tests.init_db()
 
     def test_get_user_args(self):
         """Test get_user arguments logic."""
