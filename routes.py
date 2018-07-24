@@ -10,6 +10,7 @@ import webserver.validation
 import db
 import swagger_specs
 
+
 LOGGER = util.logger.logging.getLogger('pkt.funding.routes')
 
 VERSION = swagger_specs.CONFIG['info']['version']
@@ -20,6 +21,7 @@ BLUEPRINT = flask.Blueprint('funding', __name__)
 # Input validators and fixers.
 webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_cents'] = webserver.validation.check_and_fix_natural
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
+
 
 @BLUEPRINT.route("/v{}/create_user".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.CREATE_USER)
