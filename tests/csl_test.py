@@ -71,7 +71,6 @@ class ClsReaderTest(unittest.TestCase):
             LOGGER.info("name: %s   score:%.2f", name, score)
 
 
-
 class CslTesterTest(unittest.TestCase):
     """Test CSL tests."""
 

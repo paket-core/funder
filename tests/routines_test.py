@@ -8,6 +8,7 @@ import util.logger
 
 import db
 import routines
+import tests
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.test')
 USERS_NUMBER = 6
@@ -36,12 +37,7 @@ class RoutinesTest(unittest.TestCase):
 
     def setUp(self):
         """Clear table and refill them with new data"""
-        try:
-            LOGGER.info('creating tables...')
-            db.init_db()
-        except db.util.db.mysql.connector.ProgrammingError:
-            LOGGER.info('tables already exists')
-        db.util.db.clear_tables(db.SQL_CONNECTION, db.DB_NAME)
+        tests.init_db()
 
         self.actual_keypairs.clear()
         LOGGER.info('generating new keypairs...')

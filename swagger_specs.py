@@ -50,7 +50,11 @@ server still expects some values to be passed.
 
 Currency Denomination
 =====================
-All currency amounts are denominated in integers of their indivisible units. That means that when referring to an amount of EUR we will always use EUR cents (1/100 EUR), when referring to Stellar assets (BUL and XLM) we will be using stroops (1/10**7 XLM or BUL), when referring to BTC we will use satoshis (1/10**8 BTC), and when referring to ETH we will use wei (1/10**18 ETH).
+All currency amounts are denominated in integers of their indivisible units.
+That means that when referring to an amount of EUR we will always use EUR cents
+(1/100 EUR), when referring to Stellar assets (BUL and XLM) we will be using
+stroops (1/10**7 XLM or BUL), when referring to BTC we will use satoshis
+(1/10**8 BTC), and when referring to ETH we will use wei (1/10**18 ETH).
 
 The API
 ======='''}}
