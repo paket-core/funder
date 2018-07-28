@@ -1,4 +1,5 @@
 """Routines for processing users purchases"""
+import os
 import sys
 
 import requests
@@ -10,6 +11,7 @@ import util.logger
 import db
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
+DEBUG = bool(os.environ.get('PAKET_DEBUG'))
 # one euro cent costs 0.1 BUL (1000000 stroops)
 BULS_PER_EURO = 1000000
 ETHERSCAN_API_KEY = '6KYNDD61K9YA9CX1NWUPVWCVFJN24K9QV5'
@@ -37,7 +39,8 @@ def get_currency_price(id_, convert):
 
 def get_btc_balance(address):
     """Get bitcoin address balance"""
-    url = 'https://tchain.api.btc.com/v3/address/{}'.format(address)
+    url = 'https://{testnet}chain.api.btc.com/v3/address/{address}'.format(
+        address=address, testnet='t' if DEBUG else '')
     response = requests.get(url).json()
     if response['err_no'] == 0:
         return response['data']['balance'] if response['data'] is not None else 0
