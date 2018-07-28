@@ -13,7 +13,7 @@ import db
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
 FUNDER_SEED = os.environ['PAKET_FUNDER_SEED']
-EURO_PRICE_IN_BUL = os.environ['PAKET_EURO_PRICE_IN_BUL']
+EURO_PRICE_IN_BUL = int(os.environ['PAKET_EURO_PRICE_IN_BUL'])
 ETHERSCAN_API_KEY = os.environ['PAKET_ETHERSCAN_API_KEY']
 # currencies ids on coinmarketcap.com
 XLM_ID = 512
