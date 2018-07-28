@@ -12,6 +12,7 @@ import db
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
+FUNDER_SEED = os.environ['PAKET_FUNDER_SEED']
 # one euro cent costs 0.1 BUL (1000000 stroops)
 BULS_PER_EURO = 1000000
 ETHERSCAN_API_KEY = '6KYNDD61K9YA9CX1NWUPVWCVFJN24K9QV5'
@@ -102,13 +103,13 @@ def fund_account(user_pubkey, amount, asset_code):
     assert asset_code in ['XLM', 'BUL'], 'asset must be XLM or BUL'
     prepare_function = paket_stellar.prepare_send_buls if asset_code == 'BUL' else paket_stellar.prepare_send_lumens
     prepared_transaction = prepare_function(paket_stellar.ISSUER, user_pubkey, amount)
-    paket_stellar.submit_transaction_envelope(prepared_transaction, paket_stellar.ISSUER_SEED)
+    paket_stellar.submit_transaction_envelope(prepared_transaction, FUNDER_SEED)
 
 
 def create_new_account(user_pubkey, amount):
     """Create new Stellar account and send specified amount of XLM to it"""
     prepared_transaction = paket_stellar.prepare_create_account(paket_stellar.ISSUER, user_pubkey, amount)
-    paket_stellar.submit_transaction_envelope(prepared_transaction, paket_stellar.ISSUER_SEED)
+    paket_stellar.submit_transaction_envelope(prepared_transaction, FUNDER_SEED)
 
 
 def check_purchases_addresses():
