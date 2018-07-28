@@ -56,7 +56,7 @@ def get_eth_balance(address):
         'tag': 'latest',
         'apikey': ETHERSCAN_API_KEY
     }
-    url = 'https://api-ropsten.etherscan.io/api'
+    url = "https://api{testnet}.etherscan.io/api".format(testnet='-ropsten' if DEBUG else '')
     response = requests.get(url, params=params).json()
     if response['message'] == 'OK':
         return int(response['result'])
