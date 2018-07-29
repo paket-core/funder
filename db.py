@@ -11,7 +11,7 @@ import csl_reader
 
 LOGGER = logging.getLogger('pkt.funder.db')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
-XPUB = os.environ.get('PAKET_XPUB')
+XPUB = os.environ.get('PAKET_PAYMENT_XPUB')
 DB_HOST = os.environ.get('PAKET_DB_HOST', '127.0.0.1')
 DB_PORT = int(os.environ.get('PAKET_DB_PORT', 3306))
 DB_USER = os.environ.get('PAKET_DB_USER', 'root')
