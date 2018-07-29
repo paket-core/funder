@@ -72,6 +72,13 @@ class CreateUserTest(BaseRoutesTests):
         users = db.get_users()
         self.assertEqual(len(users), 1, "number of existing users: {} should be 1".format(len(users)))
 
+    def test_invalid_call_sign(self):
+        """Test create user with invalid call_sign"""
+        keypair = paket_stellar.get_keypair()
+        self.call(
+            'create_user', 400, 'created user with invalid call_sign',
+            seed=keypair.seed(), call_sign=keypair.address().decode())
+
     def test_create_with_infos(self):
         """Test create user with provided user info."""
         keypair = paket_stellar.get_keypair()
