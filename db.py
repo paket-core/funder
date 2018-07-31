@@ -207,8 +207,6 @@ def update_purchase(payment_pubkey, paid_status):
 
 def get_users():
     """Get list of users and their details - for debug only."""
-    if not DEBUG:
-        raise AssertionError('querying users list allowed only in debug mode')
     with SQL_CONNECTION() as sql:
         sql.execute('SELECT * FROM users')
         return {user['call_sign']: dict(
