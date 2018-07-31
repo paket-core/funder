@@ -12,9 +12,4 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import funder.swagger_specs
 # pylint: enable=wrong-import-position
 
-if len(sys.argv) == 2:
-    FUNDER_PORT = sys.argv[1]
-else:
-    FUNDER_PORT = os.environ.get('PAKET_FUNDER_PORT', 8001)
-
-webserver.run(funder.routes.BLUEPRINT, funder.swagger_specs.CONFIG, FUNDER_PORT)
+webserver.run(funder.routes.BLUEPRINT, funder.swagger_specs.CONFIG, funder.routes.PORT)

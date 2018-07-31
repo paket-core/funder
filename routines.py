@@ -13,7 +13,7 @@ import db
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
 FUNDER_SEED = os.environ['PAKET_FUNDER_SEED']
-EURO_PRICE_IN_BUL = int(os.environ['PAKET_EURO_PRICE_IN_BUL'])
+BUL_STROOPS_FOR_EUR_CENT = int(os.environ['PAKET_BUL_STROOPS_FOR_EUR_CENT'])
 ETHERSCAN_API_KEY = os.environ['PAKET_ETHERSCAN_API_KEY']
 # currencies ids on coinmarketcap.com
 XLM_ID = 512
@@ -134,7 +134,7 @@ def send_requested_currency():
         euro_to_fund = min(euro_cents_balance, remaining_monthly_allowance)
         if euro_to_fund:
             if purchase['requested_currency'] == 'BUL':
-                fund_amount = euro_to_fund * EURO_PRICE_IN_BUL
+                fund_amount = euro_to_fund * BUL_STROOPS_FOR_EUR_CENT
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'])
                     if account['bul_balance'] + fund_amount <= account['bul_limit']:
