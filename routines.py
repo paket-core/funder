@@ -118,7 +118,7 @@ def check_purchases_addresses():
         LOGGER.info("checking address %s", purchase['payment_pubkey'])
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
         euro_cents_balance = currency_to_euro_cents(purchase['payment_currency'], balance)
-        if euro_cents_balance >= db.MINIMUM_MONTHLY_ALLOWANCE:
+        if euro_cents_balance >= db.MINIMUM_PAYMENT:
             db.update_purchase(purchase['payment_pubkey'], 1)
 
 
