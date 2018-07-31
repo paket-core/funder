@@ -1,4 +1,5 @@
 """Routines for processing users purchases"""
+import os
 import sys
 
 import requests
@@ -10,9 +11,10 @@ import util.logger
 import db
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
-# one euro cent costs 0.1 BUL (1000000 stroops)
-BULS_PER_EURO = 1000000
-ETHERSCAN_API_KEY = '6KYNDD61K9YA9CX1NWUPVWCVFJN24K9QV5'
+DEBUG = bool(os.environ.get('PAKET_DEBUG'))
+FUNDER_SEED = os.environ['PAKET_FUNDER_SEED']
+EURO_PRICE_IN_BUL = int(os.environ['PAKET_EURO_PRICE_IN_BUL'])
+ETHERSCAN_API_KEY = os.environ['PAKET_ETHERSCAN_API_KEY']
 # currencies ids on coinmarketcap.com
 XLM_ID = 512
 ETH_ID = 1027
@@ -37,7 +39,8 @@ def get_currency_price(id_, convert):
 
 def get_btc_balance(address):
     """Get bitcoin address balance"""
-    url = 'https://tchain.api.btc.com/v3/address/{}'.format(address)
+    url = 'https://{testnet}chain.api.btc.com/v3/address/{address}'.format(
+        address=address, testnet='t' if DEBUG else '')
     response = requests.get(url).json()
     if response['err_no'] == 0:
         return response['data']['balance'] if response['data'] is not None else 0
@@ -53,7 +56,7 @@ def get_eth_balance(address):
         'tag': 'latest',
         'apikey': ETHERSCAN_API_KEY
     }
-    url = 'https://api-ropsten.etherscan.io/api'
+    url = "https://api{testnet}.etherscan.io/api".format(testnet='-ropsten' if DEBUG else '')
     response = requests.get(url, params=params).json()
     if response['message'] == 'OK':
         return int(response['result'])
@@ -99,13 +102,13 @@ def fund_account(user_pubkey, amount, asset_code):
     assert asset_code in ['XLM', 'BUL'], 'asset must be XLM or BUL'
     prepare_function = paket_stellar.prepare_send_buls if asset_code == 'BUL' else paket_stellar.prepare_send_lumens
     prepared_transaction = prepare_function(paket_stellar.ISSUER, user_pubkey, amount)
-    paket_stellar.submit_transaction_envelope(prepared_transaction, paket_stellar.ISSUER_SEED)
+    paket_stellar.submit_transaction_envelope(prepared_transaction, FUNDER_SEED)
 
 
 def create_new_account(user_pubkey, amount):
     """Create new Stellar account and send specified amount of XLM to it"""
     prepared_transaction = paket_stellar.prepare_create_account(paket_stellar.ISSUER, user_pubkey, amount)
-    paket_stellar.submit_transaction_envelope(prepared_transaction, paket_stellar.ISSUER_SEED)
+    paket_stellar.submit_transaction_envelope(prepared_transaction, FUNDER_SEED)
 
 
 def check_purchases_addresses():
@@ -131,7 +134,7 @@ def send_requested_currency():
         euro_to_fund = min(euro_cents_balance, remaining_monthly_allowance)
         if euro_to_fund:
             if purchase['requested_currency'] == 'BUL':
-                fund_amount = euro_to_fund * BULS_PER_EURO
+                fund_amount = euro_to_fund * EURO_PRICE_IN_BUL
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'])
                     if account['bul_balance'] + fund_amount <= account['bul_limit']:

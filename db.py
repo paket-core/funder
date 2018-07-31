@@ -10,16 +10,16 @@ import util.db
 import csl_reader
 
 LOGGER = logging.getLogger('pkt.funder.db')
-SEED = ('client ancient calm uncover opinion coil priority misery empty favorite moment myth')
-XPUB = 'tpubD6NzVbkrYhZ4XMSG7EWChwJXwfByid9TdZRVaej1rpDTHV3WamyuApceF5DDZXetx8kbH82NouoazYqPeCEZWWeXHZ1do5LBCe5xMcZYeGe'
+DEBUG = bool(os.environ.get('PAKET_DEBUG'))
+XPUB = os.environ.get('PAKET_PAYMENT_XPUB')
 DB_HOST = os.environ.get('PAKET_DB_HOST', '127.0.0.1')
 DB_PORT = int(os.environ.get('PAKET_DB_PORT', 3306))
 DB_USER = os.environ.get('PAKET_DB_USER', 'root')
 DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
-MINIMUM_MONTHLY_ALLOWANCE = 500
-BASIC_MONTHLY_ALLOWANCE = 10000
+MINIMUM_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_MINIMUM_MONTHLY_ALLOWANCE'))
+BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE'))
 
 
 class UnknownUser(Exception):
@@ -168,7 +168,7 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
         "{} is allowed to purchase up to {} euro-cents when {} are required".format(
             user_pubkey, remaining_monthly_allowance, euro_cents)
 
-    network = 'btctest' if payment_currency.upper() == 'BTC' else payment_currency
+    network = "btc{}".format('test' if DEBUG else '') if payment_currency.upper() == 'BTC' else 'ethereum'
     payment_pubkey = pywallet.wallet.create_address(network=network, xpub=XPUB)['address']
     with SQL_CONNECTION() as sql:
         sql.execute(
