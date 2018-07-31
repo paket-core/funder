@@ -15,6 +15,6 @@ import funder.swagger_specs
 if len(sys.argv) == 2:
     FUNDER_PORT = sys.argv[1]
 else:
-    FUNDER_PORT = os.environ.get('PAKET_FUNDER_PORT', 5000)
+    FUNDER_PORT = os.environ.get('PAKET_FUNDER_PORT', 8001)
 
 webserver.run(funder.routes.BLUEPRINT, funder.swagger_specs.CONFIG, FUNDER_PORT)
