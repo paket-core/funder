@@ -69,12 +69,7 @@ def init_db():
 def create_user(pubkey, call_sign):
     """Create a new user."""
     with SQL_CONNECTION() as sql:
-        try:
-            sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (%s, %s)", (pubkey, call_sign))
-        except util.db.mysql.connector.IntegrityError as exception:
-            bad_column_name = str(exception).split('.')[-1]
-            bad_value = locals().get(bad_column_name)
-            raise AssertionError("{} {} is non unique".format(bad_column_name, bad_value))
+        sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (%s, %s)", (pubkey, call_sign))
 
 
 def get_user(pubkey=None, call_sign=None):

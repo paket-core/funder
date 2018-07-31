@@ -18,8 +18,19 @@ PORT = os.environ.get('PAKET_FUNDER_PORT', 8001)
 BLUEPRINT = flask.Blueprint('funding', __name__)
 
 
+def check_call_sign(key, value):
+    """Raise exception if value is valid pubkey and can not be used as call sign."""
+    try:
+        webserver.validation.check_pubkey(key, value)
+    except webserver.validation.InvalidField:
+        return value
+    warning = "the value of {}({}) is valid public key and can not be used as call sign".format(key, value)
+    raise webserver.validation.InvalidField(warning)
+
+
 # Input validators and fixers.
 webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_cents'] = webserver.validation.check_and_fix_natural
+webserver.validation.KWARGS_CHECKERS_AND_FIXERS['call_sign'] = check_call_sign
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
 
 
