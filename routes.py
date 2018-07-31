@@ -97,8 +97,3 @@ def users_handler():
     List all user details.
     """
     return {'status': 200, 'users': db.get_users()}
-
-
-if __name__ == '__main__':
-    util.logger.setup()
-    webserver.run(BLUEPRINT, swagger_specs.CONFIG, PORT)
