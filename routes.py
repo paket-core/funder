@@ -20,6 +20,8 @@ BLUEPRINT = flask.Blueprint('funding', __name__)
 
 def check_call_sign(key, value):
     """Raise exception if value is valid pubkey and can not be used as call sign."""
+    if webserver.validation.DEBUG:
+        return value
     try:
         webserver.validation.check_pubkey(key, value)
     except webserver.validation.InvalidField:
