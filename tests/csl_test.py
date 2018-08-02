@@ -79,7 +79,7 @@ class CslTesterTest(unittest.TestCase):
         name = 'Youssef Ben Abdul Baki'
         self.assertEqual(csl_reader.CSLListChecker().basic_test(name), -1, 'scammer passed kyc')
 
-    def test_fair(self):
-        """Test kyc on fair person's data"""
+    def test_valid_user(self):
+        """Test kyc on a valid user person's data"""
         name = 'Sherlock Holmes'
-        self.assertEqual(csl_reader.CSLListChecker().basic_test(name), 1, 'fair user does not pass kyc')
+        self.assertEqual(csl_reader.CSLListChecker().basic_test(name), 1, 'valid user does not pass kyc')

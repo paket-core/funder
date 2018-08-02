@@ -1,6 +1,6 @@
 """
 Class that looks for a name in the Consolidated Screening List:
-https://2016.export.gov/ecr/eg_main_023148.asp
+https://www.export.gov/article?id=Consolidated-Screening-List
 
 The search is fuzzy, to allow for minor misspells.
 
@@ -18,7 +18,7 @@ import util.logger
 import util.countly
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.csl')
-NAME_THRESHOLD = 0.83
+VALIDATION_SCORE_THRESHOLD = 0.83
 EXACT_MATCH_WEIGHT = 5
 FUZZY_MATCH_WEIGHT = .95
 
@@ -63,7 +63,7 @@ class CSLListChecker:
         except Exception as exception:
             LOGGER.warning("error loading %s, error: %s", cls.url, exception)
 
-        LOGGER.info(open(cls.filename, 'r'))
+        LOGGER.info(open(cls.filename, 'r'))  # FIXME whats this? Why in info? file should be closed?
         # pylint: enable=broad-except
 
     @classmethod
@@ -99,7 +99,6 @@ class CSLListChecker:
             # score is based on partial fuzzy search plus a small factor for full search
             fuzzy_score = min(1.0, FUZZY_MATCH_WEIGHT * partial_ratio + ratio / EXACT_MATCH_WEIGHT)
             if fuzzy_score > .6 and fuzzy_score > top_score:
-                # print("SC: %.2f %.2f n:%s str:%s" % (partial_ratio, ratio, name, search_string))
                 top_score = fuzzy_score
                 programs = str(row['programs'])
         final_score = top_score ** 2
@@ -123,4 +122,4 @@ class CSLListChecker:
     @classmethod
     def basic_test(cls, name):
         """Return -1 for fail and 1 for pass."""
-        return -1 if cls.score_name(name) > NAME_THRESHOLD else 1
+        return -1 if cls.score_name(name) > VALIDATION_SCORE_THRESHOLD else 1
