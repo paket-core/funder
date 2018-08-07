@@ -5,14 +5,14 @@ import os.path
 import util.logger
 import webserver
 
-import funder.routes
+import routes
 
 # Python imports are silly.
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 # pylint: disable=wrong-import-position
-import funder.swagger_specs
+import swagger_specs
 # pylint: enable=wrong-import-position
 
 util.logger.setup()
 
-webserver.run(funder.routes.BLUEPRINT, funder.swagger_specs.CONFIG, funder.routes.PORT)
+webserver.run(routes.BLUEPRINT, swagger_specs.CONFIG, routes.PORT)
