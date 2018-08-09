@@ -85,7 +85,7 @@ def purchase_xlm_handler(user_pubkey, euro_cents, payment_currency):
 @webserver.validation.call(['euro_cents', 'payment_currency'], require_auth=True)
 def purchase_bul_handler(user_pubkey, euro_cents, payment_currency):
     """
-    Request the purchase of Stellar lumens.
+    Request the purchase of BULs.
     Returns an address to send ETH or BTC to.
     """
     return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, euro_cents, payment_currency, 'BUL')}

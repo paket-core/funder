@@ -24,7 +24,7 @@ CONFIG = {
 
 The Funding server is responsible for giving users a simple way to create
 Stellar accounts, purchase XLMs used to pay for the Stellar transactions, and
-BULs used to launcha packages.
+BULs used to launch packages.
 
 This requires user registration, so we can perform KYC/AML checks.
 
@@ -37,15 +37,15 @@ Our calls are split into the following security levels:
  - Debug functions: require no authentication, available only in debug mode.
  - Anonymous functions: require no authentication, used to retrieve public data.
  - Authenticated functions: require asymmetric key authentication:
-    - The 'Pubkey' header will contain the user's pubkey.
-    - The 'Fingerprint' header is constructed from the comma separated
+    - The **'Pubkey'** header will contain the user's pubkey.
+    - The **'Fingerprint'** header is constructed from the comma separated
       concatenation of the called URI, all the arguments (as key=value), and an
       ever increasing nonce (recommended to use Unix time in milliseconds).
-    - The 'Signature' header will contain the signature of the key specified in
-      the 'Pubkey' header on the fingerprint specified in the 'Fingerprint'
-      header, encoded to Base64 ASCII.
+    - The **'Signature'** header will contain a Base64 ASCII encoded signature
+      on the specified 'Fingerprint', produced by the private key corresponding
+      to the specified 'pubkey'.
 
-Note that the security headers are not validated when in debug mode, but the
+Note, that the security headers are not validated when in debug mode, but the
 server still expects some values to be passed.
 
 Currency Denomination
@@ -53,8 +53,8 @@ Currency Denomination
 All currency amounts are denominated in integers of their indivisible units.
 That means that when referring to an amount of EUR we will always use EUR cents
 (1/100 EUR), when referring to Stellar assets (BUL and XLM) we will be using
-stroops (1/10**7 XLM or BUL), when referring to BTC we will use satoshis
-(1/10**8 BTC), and when referring to ETH we will use wei (1/10**18 ETH).
+stroops (1/10^7 XLM or BUL), when referring to BTC we will use satoshis
+(1/10^8 BTC), and when referring to ETH we will use wei (1/10^18 ETH).
 
 The API
 ======='''}}
