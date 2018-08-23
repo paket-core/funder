@@ -66,6 +66,29 @@ def init_db():
         LOGGER.debug('purchases table created')
 
 
+def send_verification_code(phone_number):
+    """Send verification code to specified phone number"""
+    # TODO: use some verification service for sending codes via sms
+
+
+def check_verification_code(user_pubkey, verification_code):
+    """
+    Check verification code validity and create account
+    if it was first phone verification.
+    """
+    # TODO: use some verification service for checking verification code
+    verified = True
+
+    if verified:
+        with SQL_CONNECTION() as sql:
+            sql.execute("SELECT * FROM purchases WHERE user_pubkey = %s", (user_pubkey,))
+            purchases = sql.fetchall()
+        passed_kyc = get_test_result(user_pubkey, 'basic')
+        if passed_kyc and not purchases:
+            pass
+            # TODO: create user
+
+
 def create_user(pubkey, call_sign):
     """Create a new user."""
     with SQL_CONNECTION() as sql:
@@ -137,6 +160,9 @@ def set_internal_user_info(pubkey, **kwargs):
         # Run basic test as soon as (and every time) all basic details are filled.
         if all([user_details.get(key) for key in ['full_name', 'phone_number', 'address']]):
             update_test(pubkey, 'basic', csl_reader.CSLListChecker().basic_test(user_details['full_name']))
+
+        if 'phone_number' in kwargs:
+            send_verification_code(kwargs['phone_number'])
 
     return user_details
 
