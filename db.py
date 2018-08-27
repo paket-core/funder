@@ -25,6 +25,10 @@ MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
 BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 5000))
 
 
+class NotVerified(Exception):
+    """User sent wrong or expired verification code."""
+
+
 class PhoneAlreadyInUse(Exception):
     """Specified phone number already in use by another user."""
 
@@ -96,22 +100,23 @@ def check_verification_code(user_pubkey, verification_code):
     # TODO: use some verification service for checking verification code
     verified = True
 
-    if verified:
-        with SQL_CONNECTION() as sql:
-            sql.execute("SELECT * FROM purchases WHERE user_pubkey = %s", (user_pubkey,))
-            purchases = sql.fetchall()
-        passed_kyc = get_test_result(user_pubkey, 'basic')
-        if passed_kyc and not purchases:
-            xlm_starting_balance, bul_starting_balance = \
-                (1000000000, 1000000000) if DEBUG else (15000000 + currency_conversions.euro_cents_to_xlm_stroops(100),
-                                                        currency_conversions.euro_cents_to_bul_stroops(500))
-            create_account_transaction = paket_stellar.prepare_create_account(
-                paket_stellar.ISSUER, user_pubkey, xlm_starting_balance)
-            send_buls = paket_stellar.prepare_send_buls(paket_stellar.ISSUER, user_pubkey, bul_starting_balance)
-            # TODO: send transactions in one envelope
-            paket_stellar.submit_transaction_envelope(create_account_transaction, FUNDER_SEED)
-            paket_stellar.submit_transaction_envelope(send_buls, FUNDER_SEED)
-    return verified
+    if not verified:
+        raise NotVerified('verification code invalid or expired')
+
+    with SQL_CONNECTION() as sql:
+        sql.execute("SELECT * FROM purchases WHERE user_pubkey = %s", (user_pubkey,))
+        purchases = sql.fetchall()
+    passed_kyc = get_test_result(user_pubkey, 'basic')
+    if passed_kyc and not purchases:
+        xlm_starting_balance, bul_starting_balance = \
+            (1000000000, 1000000000) if DEBUG else (15000000 + currency_conversions.euro_cents_to_xlm_stroops(100),
+                                                    currency_conversions.euro_cents_to_bul_stroops(500))
+        create_account_transaction = paket_stellar.prepare_create_account(
+            paket_stellar.ISSUER, user_pubkey, xlm_starting_balance)
+        send_buls = paket_stellar.prepare_send_buls(paket_stellar.ISSUER, user_pubkey, bul_starting_balance)
+        # TODO: send transactions in one envelope
+        paket_stellar.submit_transaction_envelope(create_account_transaction, FUNDER_SEED)
+        paket_stellar.submit_transaction_envelope(send_buls, FUNDER_SEED)
 
 
 def create_user(pubkey, call_sign):
@@ -187,7 +192,7 @@ def set_internal_user_info(pubkey, **kwargs):
             update_test(pubkey, 'basic', csl_reader.CSLListChecker().basic_test(user_details['full_name']))
 
         if 'phone_number' in kwargs:
-            send_verification_code(kwargs['phone_number'])
+            send_verification_code(pubkey, kwargs['phone_number'])
 
     return user_details
 

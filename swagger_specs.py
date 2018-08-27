@@ -123,7 +123,7 @@ VERIFY_CODE = {
         {'name': 'verification_code', 'in': 'formData', 'type': 'string', 'required': True}],
     'responses': {
         '200': {'description': 'code verified'},
-        '403': {'description': 'wrong or expired code'}}}
+        '403': {'description': 'invalid or expired code'}}}
 
 
 USERS = {'tags': ['debug'], 'responses': {'200': {'description': 'dict of users'}}}

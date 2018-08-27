@@ -99,7 +99,8 @@ def verify_code_handler(user_pubkey, verification_code):
     """
     Verify code received in sms.
     """
-    return {'status': 200, 'verified': db.check_verification_code(user_pubkey, verification_code)}
+    db.check_verification_code(user_pubkey, verification_code)
+    return {'status': 200, 'verified': True}
 
 
 @BLUEPRINT.route("/v{}/debug/users".format(VERSION), methods=['GET'])
