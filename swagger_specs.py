@@ -115,4 +115,15 @@ PURCHASE_BUL = {
         '201': {'description': 'payment address generated'},
         '403': {'description': 'user not authorized'}}}
 
+VERIFY_CODE = {
+    'parameters': [
+        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'verification_code', 'in': 'formData', 'type': 'string', 'required': True}],
+    'responses': {
+        '200': {'description': 'code verified'},
+        '403': {'description': 'wrong or expired code'}}}
+
+
 USERS = {'tags': ['debug'], 'responses': {'200': {'description': 'dict of users'}}}
