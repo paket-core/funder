@@ -25,6 +25,10 @@ MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
 BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 5000))
 
 
+class PhoneAlreadyInUse(Exception):
+    """Specified phone number already in use by another user."""
+
+
 class UnknownUser(Exception):
     """Requested user does not exist."""
 
@@ -69,8 +73,18 @@ def init_db():
         LOGGER.debug('purchases table created')
 
 
-def send_verification_code(phone_number):
-    """Send verification code to specified phone number"""
+def send_verification_code(user_pubkey, phone_number):
+    """Send verification code to specified phone number if it is new user and phone has been never used before."""
+    with SQL_CONNECTION() as sql:
+        sql.execute('''
+            SELECT phone_number, pubkey, full_name  FROM internal_user_infos
+            WHERE phone_number = %s AND pubkey != %s LIMIT 1''', (phone_number, user_pubkey))
+        phone_numbers = sql.fetchall()
+
+    if phone_numbers:
+        error_msg = "phone {} already in use by user {} (pubkey: {})".format(
+            phone_numbers[0]['phone_number'], phone_numbers[0]['full_name'], phone_numbers[0]['pubkey'])
+        raise PhoneAlreadyInUse(error_msg)
     # TODO: use some verification service for sending codes via sms
 
 
