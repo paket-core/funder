@@ -21,6 +21,8 @@ DB_USER = os.environ.get('PAKET_DB_USER', 'root')
 DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
+XLM_STARTING_BALANCE = 1000000000 if DEBUG else 15000000 + currency_conversions.euro_cents_to_xlm_stroops(100)
+BUL_STARTING_BALANCE = 1000000000 if DEBUG else currency_conversions.euro_cents_to_bul_stroops(500)
 MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
 BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 5000))
 
@@ -108,15 +110,13 @@ def check_verification_code(user_pubkey, verification_code):
         purchases = sql.fetchall()
     passed_kyc = get_test_result(user_pubkey, 'basic')
     if passed_kyc and not purchases:
-        xlm_starting_balance, bul_starting_balance = \
-            (1000000000, 1000000000) if DEBUG else (15000000 + currency_conversions.euro_cents_to_xlm_stroops(100),
-                                                    currency_conversions.euro_cents_to_bul_stroops(500))
         create_account_transaction = paket_stellar.prepare_create_account(
-            paket_stellar.ISSUER, user_pubkey, xlm_starting_balance)
-        send_buls = paket_stellar.prepare_send_buls(paket_stellar.ISSUER, user_pubkey, bul_starting_balance)
+            paket_stellar.ISSUER, user_pubkey, XLM_STARTING_BALANCE)
+        send_buls_transaction = paket_stellar.prepare_send_buls(
+            paket_stellar.ISSUER, user_pubkey, BUL_STARTING_BALANCE)
         # TODO: send transactions in one envelope
         paket_stellar.submit_transaction_envelope(create_account_transaction, FUNDER_SEED)
-        paket_stellar.submit_transaction_envelope(send_buls, FUNDER_SEED)
+        paket_stellar.submit_transaction_envelope(send_buls_transaction, FUNDER_SEED)
 
 
 def create_user(pubkey, call_sign):
