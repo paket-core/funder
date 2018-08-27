@@ -28,7 +28,7 @@ BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 50
 
 
 class NotVerified(Exception):
-    """User sent wrong or expired verification code."""
+    """User sent invalid or expired verification code."""
 
 
 class PhoneAlreadyInUse(Exception):
