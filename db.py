@@ -5,12 +5,15 @@ import time
 
 import pywallet.wallet
 
+import paket_stellar
 import util.db
 
 import csl_reader
+import currency_conversions
 
 LOGGER = logging.getLogger('pkt.funder.db')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
+FUNDER_SEED = os.environ['PAKET_FUNDER_SEED']
 XPUB = os.environ['PAKET_PAYMENT_XPUB']
 DB_HOST = os.environ.get('PAKET_DB_HOST', '127.0.0.1')
 DB_PORT = int(os.environ.get('PAKET_DB_PORT', 3306))
@@ -85,8 +88,16 @@ def check_verification_code(user_pubkey, verification_code):
             purchases = sql.fetchall()
         passed_kyc = get_test_result(user_pubkey, 'basic')
         if passed_kyc and not purchases:
-            pass
-            # TODO: create user
+            xlm_starting_balance, bul_starting_balance = \
+                (1000000000, 1000000000) if DEBUG else (15000000 + currency_conversions.euro_cents_to_xlm_stroops(100),
+                                                        currency_conversions.euro_cents_to_bul_stroops(500))
+            create_account_transaction = paket_stellar.prepare_create_account(
+                paket_stellar.ISSUER, user_pubkey, xlm_starting_balance)
+            send_buls = paket_stellar.prepare_send_buls(paket_stellar.ISSUER, user_pubkey, bul_starting_balance)
+            # TODO: send transactions in one envelope
+            paket_stellar.submit_transaction_envelope(create_account_transaction, FUNDER_SEED)
+            paket_stellar.submit_transaction_envelope(send_buls, FUNDER_SEED)
+    return verified
 
 
 def create_user(pubkey, call_sign):
