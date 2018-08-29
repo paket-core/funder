@@ -77,6 +77,15 @@ def init_db():
                 paid INTEGER DEFAULT 0,
                 FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('purchases table created')
+        sql.execute('''
+            CREATE TABLE fundings(
+                timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                user_pubkey VARCHAR(56) NOT NULL,
+                funded_xlm INTEGER NOT NULL
+                funded_bul INTEGER NOT NULL
+                PRIMARY KEY (timestamp, user_pubkey),
+                FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
+        LOGGER.debug('fundings table created')
 
 
 def send_verification_code(user_pubkey, phone_number):
@@ -110,13 +119,7 @@ def check_verification_code(user_pubkey, verification_code):
         purchases = sql.fetchall()
     passed_kyc = get_test_result(user_pubkey, 'basic')
     if passed_kyc and not purchases:
-        create_account_transaction = paket_stellar.prepare_create_account(
-            paket_stellar.ISSUER, user_pubkey, XLM_STARTING_BALANCE)
-        send_buls_transaction = paket_stellar.prepare_send_buls(
-            paket_stellar.ISSUER, user_pubkey, BUL_STARTING_BALANCE)
-        # TODO: send transactions in one envelope
-        paket_stellar.submit_transaction_envelope(create_account_transaction, FUNDER_SEED)
-        paket_stellar.submit_transaction_envelope(send_buls_transaction, FUNDER_SEED)
+        crate_and_fund(user_pubkey)
 
 
 def create_user(pubkey, call_sign):
@@ -232,6 +235,21 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
             VALUES (%s, %s, %s, %s, %s)""",
             (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency))
     return payment_pubkey
+
+
+def crate_and_fund(user_pubkey):
+    """Create account and fund it with starting XLM and BUL amounts"""
+    create_account_transaction = paket_stellar.prepare_create_account(
+        paket_stellar.ISSUER, user_pubkey, XLM_STARTING_BALANCE)
+    send_buls_transaction = paket_stellar.prepare_send_buls(
+        paket_stellar.ISSUER, user_pubkey, BUL_STARTING_BALANCE)
+    # TODO: send transactions in one envelope
+    paket_stellar.submit_transaction_envelope(create_account_transaction, FUNDER_SEED)
+    paket_stellar.submit_transaction_envelope(send_buls_transaction, FUNDER_SEED)
+    with SQL_CONNECTION() as sql:
+        sql.execute("""
+            INSERT INTO fundings (user_pubkey, funded_xlm, funded_bul)
+            VALUES (%s, %s, %s)""", (user_pubkey, XLM_STARTING_BALANCE, BUL_STARTING_BALANCE))
 
 
 def get_purchases():
