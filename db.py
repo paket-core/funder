@@ -7,6 +7,7 @@ import pywallet.wallet
 
 import paket_stellar
 import util.db
+import util.conversion
 
 import csl_reader
 import currency_conversions
@@ -239,13 +240,12 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
 
 def create_and_fund(user_pubkey):
     """Create account and fund it with starting XLM and BUL amounts"""
-    create_account_transaction = paket_stellar.prepare_create_account(
-        paket_stellar.ISSUER, user_pubkey, XLM_STARTING_BALANCE)
-    send_buls_transaction = paket_stellar.prepare_send_buls(
-        paket_stellar.ISSUER, user_pubkey, BUL_STARTING_BALANCE)
-    # TODO: send transactions in one envelope
-    paket_stellar.submit_transaction_envelope(create_account_transaction, FUNDER_SEED)
-    paket_stellar.submit_transaction_envelope(send_buls_transaction, FUNDER_SEED)
+    starting_balance = util.conversion.stroops_to_units(XLM_STARTING_BALANCE)
+    funder_pubkey = paket_stellar.stellar_base.Keypair.from_seed(FUNDER_SEED).address().decode()
+    builder = paket_stellar.gen_builder(funder_pubkey)
+    builder.append_create_account_op(destination=user_pubkey, starting_balance=starting_balance)
+    envelope = builder.gen_te().xdr().decode()
+    paket_stellar.submit_transaction_envelope(envelope, seed=FUNDER_SEED)
     with SQL_CONNECTION() as sql:
         sql.execute("""
             INSERT INTO fundings (user_pubkey, funded_xlm, funded_bul)
