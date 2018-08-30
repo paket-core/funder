@@ -81,8 +81,8 @@ def init_db():
             CREATE TABLE fundings(
                 timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                 user_pubkey VARCHAR(56) NOT NULL,
-                funded_xlm INTEGER NOT NULL
-                funded_bul INTEGER NOT NULL
+                funded_xlm INTEGER NOT NULL,
+                funded_bul INTEGER NOT NULL,
                 PRIMARY KEY (timestamp, user_pubkey),
                 FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('fundings table created')
@@ -119,7 +119,7 @@ def check_verification_code(user_pubkey, verification_code):
         purchases = sql.fetchall()
     passed_kyc = get_test_result(user_pubkey, 'basic')
     if passed_kyc and not purchases:
-        crate_and_fund(user_pubkey)
+        create_and_fund(user_pubkey)
 
 
 def create_user(pubkey, call_sign):
@@ -237,7 +237,7 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
     return payment_pubkey
 
 
-def crate_and_fund(user_pubkey):
+def create_and_fund(user_pubkey):
     """Create account and fund it with starting XLM and BUL amounts"""
     create_account_transaction = paket_stellar.prepare_create_account(
         paket_stellar.ISSUER, user_pubkey, XLM_STARTING_BALANCE)
