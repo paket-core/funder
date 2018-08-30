@@ -7,6 +7,7 @@ import pywallet.wallet
 
 import paket_stellar
 import util.db
+import util.conversion
 
 import csl_reader
 import currency_conversions
@@ -21,6 +22,9 @@ DB_USER = os.environ.get('PAKET_DB_USER', 'root')
 DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
+# limits to fund (in euro-cents)
+HOUR_FUND_LIMIT = 5000
+DAY_FUND_LIMIT = 10000
 XLM_STARTING_BALANCE = 1000000000 if DEBUG else 15000000 + currency_conversions.euro_cents_to_xlm_stroops(100)
 BUL_STARTING_BALANCE = 1000000000 if DEBUG else currency_conversions.euro_cents_to_bul_stroops(500)
 MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
@@ -29,6 +33,10 @@ BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 50
 
 class NotVerified(Exception):
     """User sent invalid or expired verification code."""
+
+
+class FundLimitOverflow(Exception):
+    """Unable to fund account because of limit overflow."""
 
 
 class PhoneAlreadyInUse(Exception):
@@ -81,8 +89,8 @@ def init_db():
             CREATE TABLE fundings(
                 timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                 user_pubkey VARCHAR(56) NOT NULL,
-                funded_xlm INTEGER NOT NULL
-                funded_bul INTEGER NOT NULL
+                funded_xlm INTEGER NOT NULL,
+                funded_bul INTEGER NOT NULL,
                 PRIMARY KEY (timestamp, user_pubkey),
                 FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('fundings table created')
@@ -119,7 +127,7 @@ def check_verification_code(user_pubkey, verification_code):
         purchases = sql.fetchall()
     passed_kyc = get_test_result(user_pubkey, 'basic')
     if passed_kyc and not purchases:
-        crate_and_fund(user_pubkey)
+        create_and_fund(user_pubkey)
 
 
 def create_user(pubkey, call_sign):
@@ -237,15 +245,26 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
     return payment_pubkey
 
 
-def crate_and_fund(user_pubkey):
+def get_spent_euro(period):
+    """Get spent euro-cents amount for specified period of time."""
+
+
+def get_hourly_spent_euro():
+    """Get spent euro-cents amount for last hour."""
+
+
+def get_dayly_spent_euro():
+    """Get spent euro-cents amount for last 24 hours."""
+
+
+def create_and_fund(user_pubkey):
     """Create account and fund it with starting XLM and BUL amounts"""
-    create_account_transaction = paket_stellar.prepare_create_account(
-        paket_stellar.ISSUER, user_pubkey, XLM_STARTING_BALANCE)
-    send_buls_transaction = paket_stellar.prepare_send_buls(
-        paket_stellar.ISSUER, user_pubkey, BUL_STARTING_BALANCE)
-    # TODO: send transactions in one envelope
-    paket_stellar.submit_transaction_envelope(create_account_transaction, FUNDER_SEED)
-    paket_stellar.submit_transaction_envelope(send_buls_transaction, FUNDER_SEED)
+    starting_balance = util.conversion.stroops_to_units(XLM_STARTING_BALANCE)
+    funder_pubkey = paket_stellar.stellar_base.Keypair.from_seed(FUNDER_SEED).address().decode()
+    builder = paket_stellar.gen_builder(funder_pubkey)
+    builder.append_create_account_op(destination=user_pubkey, starting_balance=starting_balance)
+    envelope = builder.gen_te().xdr().decode()
+    paket_stellar.submit_transaction_envelope(envelope, seed=FUNDER_SEED)
     with SQL_CONNECTION() as sql:
         sql.execute("""
             INSERT INTO fundings (user_pubkey, funded_xlm, funded_bul)
