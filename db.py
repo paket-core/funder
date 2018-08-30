@@ -23,20 +23,20 @@ DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
 # limits to fund (in euro-cents)
-HOUR_FUND_LIMIT = 5000
-DAY_FUND_LIMIT = 10000
+HOURLY_FUND_LIMIT = 5000
+DAILY_FUND_LIMIT = 10000
 XLM_STARTING_BALANCE = 1000000000 if DEBUG else 15000000 + currency_conversions.euro_cents_to_xlm_stroops(100)
 BUL_STARTING_BALANCE = 1000000000 if DEBUG else currency_conversions.euro_cents_to_bul_stroops(500)
 MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
 BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 5000))
 
 
+class FundLimitReached(Exception):
+    """Unable to fund account because fund limit was reached."""
+
+
 class NotVerified(Exception):
     """User sent invalid or expired verification code."""
-
-
-class FundLimitOverflow(Exception):
-    """Unable to fund account because of limit overflow."""
 
 
 class PhoneAlreadyInUse(Exception):
@@ -248,18 +248,36 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
 
 def get_spent_euro(period):
     """Get spent euro-cents amount for specified period of time."""
+    with SQL_CONNECTION() as sql:
+        sql.execute('''
+            SELECT CAST(SUM(euro_cents) AS SIGNED) euro_cents FROM fundings
+            WHERE timestamp > %s''', (period,))
+        try:
+            return sql.fetchall()[0][b'euro_cents'] or 0
+        except TypeError:
+            return 0
 
 
 def get_hourly_spent_euro():
     """Get spent euro-cents amount for last hour."""
+    return get_spent_euro(3600)
 
 
-def get_dayly_spent_euro():
+def get_daily_spent_euro():
     """Get spent euro-cents amount for last 24 hours."""
+    return get_spent_euro(86400)
 
 
 def create_and_fund(user_pubkey):
     """Create account and fund it with starting XLM and BUL amounts"""
+    daily_spent_euro = get_daily_spent_euro()
+    if daily_spent_euro >= DAILY_FUND_LIMIT:
+        raise FundLimitReached('daily fund limit reached')
+
+    hourly_spent_euro = get_hourly_spent_euro()
+    if hourly_spent_euro >= HOURLY_FUND_LIMIT:
+        raise FundLimitReached('hourly fund limit reached')
+
     starting_balance = util.conversion.stroops_to_units(XLM_STARTING_BALANCE)
     funder_pubkey = paket_stellar.stellar_base.Keypair.from_seed(FUNDER_SEED).address().decode()
     builder = paket_stellar.gen_builder(funder_pubkey)

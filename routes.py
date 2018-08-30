@@ -33,8 +33,11 @@ def check_call_sign(key, value):
 # Input validators and fixers.
 webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_cents'] = webserver.validation.check_and_fix_natural
 webserver.validation.KWARGS_CHECKERS_AND_FIXERS['call_sign'] = check_call_sign
-webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.FundLimitReached] = 403
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.NotVerified] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.PhoneAlreadyInUse] = 403
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
+
 
 
 @BLUEPRINT.route("/v{}/create_user".format(VERSION), methods=['POST'])
