@@ -22,6 +22,9 @@ DB_USER = os.environ.get('PAKET_DB_USER', 'root')
 DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
+# limits to fund (in euro-cents)
+HOUR_FUND_LIMIT = 5000
+DAY_FUND_LIMIT = 10000
 XLM_STARTING_BALANCE = 1000000000 if DEBUG else 15000000 + currency_conversions.euro_cents_to_xlm_stroops(100)
 BUL_STARTING_BALANCE = 1000000000 if DEBUG else currency_conversions.euro_cents_to_bul_stroops(500)
 MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
@@ -30,6 +33,10 @@ BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 50
 
 class NotVerified(Exception):
     """User sent wrong or expired verification code."""
+
+
+class FundLimitOverflow(Exception):
+    """Unable to fund account because of limit overflow."""
 
 
 class PhoneAlreadyInUse(Exception):
@@ -236,6 +243,18 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
             VALUES (%s, %s, %s, %s, %s)""",
             (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency))
     return payment_pubkey
+
+
+def get_spent_euro(period):
+    """Get spent euro-cents amount for specified period of time."""
+
+
+def get_hourly_spent_euro():
+    """Get spent euro-cents amount for last hour."""
+
+
+def get_dayly_spent_euro():
+    """Get spent euro-cents amount for last 24 hours."""
 
 
 def create_and_fund(user_pubkey):
