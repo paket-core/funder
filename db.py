@@ -89,8 +89,9 @@ def init_db():
             CREATE TABLE fundings(
                 timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                 user_pubkey VARCHAR(56) NOT NULL,
-                funded_xlm INTEGER NOT NULL,
-                funded_bul INTEGER NOT NULL,
+                currency VARCHAR(3),
+                currency_amount INTEGER,
+                euro_cents INTEGER,
                 PRIMARY KEY (timestamp, user_pubkey),
                 FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('fundings table created')
@@ -265,10 +266,11 @@ def create_and_fund(user_pubkey):
     builder.append_create_account_op(destination=user_pubkey, starting_balance=starting_balance)
     envelope = builder.gen_te().xdr().decode()
     paket_stellar.submit_transaction_envelope(envelope, seed=FUNDER_SEED)
+    euro_cents = currency_conversions.currency_to_euro_cents('XLM', XLM_STARTING_BALANCE)
     with SQL_CONNECTION() as sql:
         sql.execute("""
-            INSERT INTO fundings (user_pubkey, funded_xlm, funded_bul)
-            VALUES (%s, %s, %s)""", (user_pubkey, XLM_STARTING_BALANCE, BUL_STARTING_BALANCE))
+            INSERT INTO fundings (user_pubkey, currency, currency_amount, euro_cents)
+            VALUES (%s, %s, %s, %s)""", (user_pubkey, 'XLM', XLM_STARTING_BALANCE, euro_cents))
 
 
 def get_purchases():
