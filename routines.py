@@ -77,7 +77,7 @@ def check_purchases_addresses():
 
 
 def send_requested_currency():
-    """Check purchases addresses with paid status and send requested currency to user account"""
+    """Check purchases addresses with paid status and send requested currency to user account."""
     purchases = db.get_paid()
     for purchase in purchases:
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
@@ -115,6 +115,31 @@ def send_requested_currency():
                 db.update_purchase(purchase['payment_pubkey'], 2)
 
 
+def fund_new_accounts():
+    """Check new accounts and fund them with BULs."""
+    unfunded_users = db.get_unfunded()
+    if not unfunded_users:
+        LOGGER.info('there is no new users with unfunded accounts')
+        return
+
+    daily_spent = db.get_daily_spent_euro()
+    hourly_spent = db.get_hourly_spent_euro()
+    remaining_funds = min(
+        db.HOURLY_FUND_LIMIT - hourly_spent if db.HOURLY_FUND_LIMIT > hourly_spent else 0,
+        db.DAILY_FUND_LIMIT - daily_spent if db.DAILY_FUND_LIMIT > daily_spent else 0)
+
+    if remaining_funds == 0:
+        LOGGER.warning('unable to fund, fund limit reached')
+        LOGGER.warning("hourly spent amount: %s; daily spent amount: %s", hourly_spent, daily_spent)
+
+    funded_users_amount = 0
+    while funded_users_amount < len(unfunded_users):
+        if funded_users_amount * db.BUL_STARTING_BALANCE >= remaining_funds:
+            LOGGER.warning('fund limit reached; %s accounts funded, %s accounts remaining')
+        # TODO: place code for funding accounts there.
+        funded_users_amount += 1
+
+
 if __name__ == '__main__':
     util.logger.setup()
     try:
@@ -124,6 +149,8 @@ if __name__ == '__main__':
         if sys.argv[1] == 'pay':
             send_requested_currency()
             sys.exit(0)
+        if sys.argv[1] == 'fund':
+            sys.exit(0)
     except IndexError:
         pass
-    print(' Usage: python routines.py [monitor|pay]')
+    print(' Usage: python routines.py [monitor|pay|fund]')
