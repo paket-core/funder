@@ -291,6 +291,17 @@ def create_and_fund(user_pubkey):
             VALUES (%s, %s, %s, %s)""", (user_pubkey, 'XLM', XLM_STARTING_BALANCE, euro_cents))
 
 
+def get_unfunded():
+    """Get new accounts that has been not funded yet."""
+    with SQL_CONNECTION() as sql:
+        sql.execute('''
+            SELECT pubkey, call_sign FROM users 
+            WHERE pubkey NOT IN (SELECT user_pubkey FROM fundings) AND
+            (SELECT result FROM test_results WHERE pubkey = pubkey AND name = 'basic' 
+            ORDER BY timestamp DESC LIMIT 1) = 1''')
+        return sql.fetchall()
+
+
 def get_purchases():
     """Get all purchases"""
     with SQL_CONNECTION() as sql:
