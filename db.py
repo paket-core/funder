@@ -269,7 +269,7 @@ def get_daily_spent_euro():
 
 
 def create_and_fund(user_pubkey):
-    """Create account and fund it with starting XLM and BUL amounts"""
+    """Create account and fund it with starting XLM amount."""
     daily_spent_euro = get_daily_spent_euro()
     if daily_spent_euro >= DAILY_FUND_LIMIT:
         raise FundLimitReached('daily fund limit reached')
@@ -296,7 +296,7 @@ def get_unfunded():
     with SQL_CONNECTION() as sql:
         sql.execute('''
             SELECT pubkey, call_sign FROM users 
-            WHERE pubkey NOT IN (SELECT user_pubkey FROM fundings) AND
+            WHERE pubkey NOT IN (SELECT user_pubkey FROM fundings WHERE currency = 'BUL') AND
             (SELECT result FROM test_results WHERE pubkey = pubkey AND name = 'basic' 
             ORDER BY timestamp DESC LIMIT 1) = 1''')
         return sql.fetchall()
