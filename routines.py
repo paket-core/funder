@@ -132,12 +132,16 @@ def fund_new_accounts():
         LOGGER.warning('unable to fund, fund limit reached')
         LOGGER.warning("hourly spent amount: %s; daily spent amount: %s", hourly_spent, daily_spent)
 
-    funded_users_amount = 0
-    while funded_users_amount < len(unfunded_users):
+    for index, user in enumerate(unfunded_users):
+        funded_users_amount = index
         if funded_users_amount * db.BUL_STARTING_BALANCE >= remaining_funds:
-            LOGGER.warning('fund limit reached; %s accounts funded, %s accounts remaining')
-        # TODO: place code for funding accounts there.
-        funded_users_amount += 1
+            LOGGER.warning(
+                'fund limit reached; %s accounts funded, %s accounts remaining',
+                funded_users_amount, len(unfunded_users) - funded_users_amount)
+            break
+
+        db.fund(user['pubkey'])
+        LOGGER.info('user %s (%s) funded with %s BUL', user['pubkey'], user['call_sign'], db.BUL_STARTING_BALANCE)
 
 
 if __name__ == '__main__':
