@@ -291,6 +291,19 @@ def create_and_fund(user_pubkey):
             VALUES (%s, %s, %s, %s)""", (user_pubkey, 'XLM', XLM_STARTING_BALANCE, euro_cents))
 
 
+def fund(user_pubkey):
+    """Fund account with starting BUL amount."""
+    funder_pubkey = paket_stellar.stellar_base.Keypair.from_seed(FUNDER_SEED).address().decode()
+    prepare_fund_transaction = paket_stellar.prepare_send_buls(
+        funder_pubkey, user_pubkey, BUL_STARTING_BALANCE)
+    paket_stellar.submit_transaction_envelope(prepare_fund_transaction, FUNDER_SEED)
+    euro_cents = currency_conversions.currency_to_euro_cents('BUL', BUL_STARTING_BALANCE)
+    with SQL_CONNECTION() as sql:
+        sql.execute("""
+            INSERT INTO fundings (user_pubkey, currency, currency_amount, euro_cents)
+            VALUES (%s, %s, %s, %s)""", (user_pubkey, 'BUL', BUL_STARTING_BALANCE, euro_cents))
+
+
 def get_unfunded():
     """Get new accounts that has been not funded yet."""
     with SQL_CONNECTION() as sql:
