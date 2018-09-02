@@ -4,6 +4,7 @@ import os
 import time
 
 import pywallet.wallet
+import authy
 
 import paket_stellar
 import util.db
@@ -12,6 +13,8 @@ import util.conversion
 import csl_reader
 import currency_conversions
 
+AUTHY_API_KEY = os.environ.get('PAKET_AUTHY_API')
+AUTHY_API = authy.api.AuthyApiClient(AUTHY_API_KEY)
 LOGGER = logging.getLogger('pkt.funder.db')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
 FUNDER_SEED = os.environ['PAKET_FUNDER_SEED']
@@ -62,6 +65,7 @@ def init_db():
                 full_name VARCHAR(256),
                 phone_number VARCHAR(32),
                 address VARCHAR(1024),
+                authy_id varchar(56),
                 PRIMARY KEY (timestamp, pubkey),
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('internal_user_infos table created')
@@ -97,7 +101,7 @@ def init_db():
         LOGGER.debug('fundings table created')
 
 
-def send_verification_code(user_pubkey, phone_number):
+def send_verification_code(user_pubkey, phone_number, authy_id):
     """Send verification code to specified phone number if it is new user and phone has been never used before."""
     with SQL_CONNECTION() as sql:
         sql.execute('''
@@ -109,7 +113,8 @@ def send_verification_code(user_pubkey, phone_number):
         error_msg = "phone {} already in use by user {} (pubkey: {})".format(
             phone_numbers[0]['phone_number'], phone_numbers[0]['full_name'], phone_numbers[0]['pubkey'])
         raise PhoneAlreadyInUse(error_msg)
-    # TODO: use some verification service for sending codes via sms
+
+    AUTHY_API.users.request_sms(authy_id)
 
 
 def check_verification_code(user_pubkey, verification_code):
@@ -117,10 +122,13 @@ def check_verification_code(user_pubkey, verification_code):
     Check verification code validity and create account
     if it was first phone verification.
     """
-    # TODO: use some verification service for checking verification code
-    verified = True
+    authy_id = set_internal_user_info(user_pubkey).get('authy_id', None)
+    if authy_id is None:
+        # TODO: add some custom exception
+        pass
+    verification = AUTHY_API.tokens.verify(authy_id, verification_code)
 
-    if not verified:
+    if not verification.ok():
         raise NotVerified('verification code invalid or expired')
 
     with SQL_CONNECTION() as sql:
@@ -190,6 +198,12 @@ def set_internal_user_info(pubkey, **kwargs):
 
     user_details = get_user_infos(pubkey)
     if kwargs:
+        if 'phone_number' in kwargs and 'phone_number' not in user_details:
+            authy_user = AUTHY_API_KEY.users.create('EMAIL', kwargs['phone_number'])
+            # TODO: add code for handling unsuccessful request
+            kwargs['authy_id'] = authy_user.id
+            send_verification_code(pubkey, kwargs['phone_number'], authy_user.id)
+
         user_details.update(kwargs)
         user_details['pubkey'] = pubkey
         if 'timestamp' in user_details:
@@ -202,9 +216,6 @@ def set_internal_user_info(pubkey, **kwargs):
         # Run basic test as soon as (and every time) all basic details are filled.
         if all([user_details.get(key) for key in ['full_name', 'phone_number', 'address']]):
             update_test(pubkey, 'basic', csl_reader.CSLListChecker().basic_test(user_details['full_name']))
-
-        if 'phone_number' in kwargs:
-            send_verification_code(pubkey, kwargs['phone_number'])
 
     return user_details
 
