@@ -4,7 +4,7 @@ import os
 import time
 
 import pywallet.wallet
-import authy
+import authy.api
 
 import paket_stellar
 import util.db
@@ -199,7 +199,7 @@ def set_internal_user_info(pubkey, **kwargs):
     user_details = get_user_infos(pubkey)
     if kwargs:
         if 'phone_number' in kwargs and 'phone_number' not in user_details:
-            authy_user = AUTHY_API_KEY.users.create('EMAIL', kwargs['phone_number'])
+            authy_user = AUTHY_API.users.create('EMAIL', kwargs['phone_number'])
             # TODO: add code for handling unsuccessful request
             kwargs['authy_id'] = authy_user.id
             send_verification_code(pubkey, kwargs['phone_number'], authy_user.id)
