@@ -114,7 +114,10 @@ def send_verification_code(user_pubkey, phone_number, authy_id):
             phone_numbers[0]['phone_number'], phone_numbers[0]['full_name'], phone_numbers[0]['pubkey'])
         raise PhoneAlreadyInUse(error_msg)
 
-    AUTHY_API.users.request_sms(authy_id)
+    # FIXME: Add proper eror handling
+    sms = AUTHY_API.users.request_sms(authy_id)
+    if not sms.ok():
+        raise AssertionError(sms.errors())
 
 
 def check_verification_code(user_pubkey, verification_code):
@@ -199,7 +202,13 @@ def set_internal_user_info(pubkey, **kwargs):
     user_details = get_user_infos(pubkey)
     if kwargs:
         if 'phone_number' in kwargs and 'phone_number' not in user_details:
-            authy_user = AUTHY_API.users.create('EMAIL', kwargs['phone_number'])
+            # FIXME: It is temporary workaround
+            full_phone_number = kwargs['phone_number'].replace('+', '')
+            country_code = full_phone_number[:3]
+            phone_number = full_phone_number[3:]
+            authy_user = AUTHY_API.users.create('paket@mockemails.moc', phone_number, country_code)
+            if not authy_user.ok():
+                raise AssertionError(authy_user.errors())
             # TODO: add code for handling unsuccessful request
             kwargs['authy_id'] = authy_user.id
             send_verification_code(pubkey, kwargs['phone_number'], authy_user.id)
