@@ -29,9 +29,13 @@ def get_currency_price(id_, convert):
 
 def currency_to_euro_cents(currency, amount):
     """Convert amount of coins in specified currency to euro cents"""
-    assert currency in ['BTC', 'ETH'], 'currency must be BTC or ETH'
-    id_, decimals = (BTC_ID, util.conversion.BTC_DECIMALS) if currency == 'BTC' else (
-        ETH_ID, util.conversion.ETH_DECIMALS)
+    assert currency in ['BTC', 'ETH', 'XLM'], 'currency must be BTC, ETH or XLM'
+    if currency == 'BTC':
+        id_, decimals = BTC_ID, util.conversion.BTC_DECIMALS
+    elif currency == 'ETH':
+        id_, decimals = ETH_ID, util.conversion.ETH_DECIMALS
+    else:
+        id_, decimals = XLM_ID, util.conversion.STELLAR_DECIMALS
     eur_price = get_currency_price(id_, 'EUR')
     price_decimals = len(eur_price.split('.')[1])
     # price in fictitious units (portions of euro cents) by 1 indivisible unit of specified crypto currency
