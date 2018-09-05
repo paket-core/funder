@@ -105,9 +105,11 @@ def send_verification_code(user_pubkey):
     """Send verification code to user's phone number."""
     user_info = set_internal_user_info(user_pubkey)
 
+    # TODO : add custom exceptions
     if 'phone_number' not in user_info:
-        # TODO : add custom exception
         raise AssertionError('phone number does not provided')
+    if not get_test_result(user_pubkey, 'basic'):
+        raise AssertionError('user does not passed KYC')
 
     if user_info['authy_id'] is not None:
         authy_id = user_info['authy_id']
