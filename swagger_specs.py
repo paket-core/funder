@@ -115,7 +115,7 @@ PURCHASE_BUL = {
         '201': {'description': 'payment address generated'},
         '403': {'description': 'user not authorized'}}}
 
-SEND_VERIFICATION_CODE = {
+REQUEST_VERIFICATION_CODE = {
     'parameters': [
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
