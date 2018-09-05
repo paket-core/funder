@@ -42,7 +42,7 @@ class NotVerified(Exception):
     """User sent invalid or expired verification code."""
 
 
-class PhoneAlreadyInUse(Exception):
+class PhoneNumberAlreadyInUse(Exception):
     """Specified phone number already in use by another user."""
 
 
@@ -101,7 +101,7 @@ def init_db():
         LOGGER.debug('fundings table created')
 
 
-def send_verification_code(user_pubkey):
+def request_verification_code(user_pubkey):
     """Send verification code to user's phone number."""
     user_info = set_internal_user_info(user_pubkey)
 
@@ -207,6 +207,18 @@ def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
     # Verify user exists.
     get_user(pubkey)
+
+    # prevent using phone number that already in use
+    if 'phone_number' in kwargs:
+        with SQL_CONNECTION() as sql:
+            sql.execute('''
+                SELECT pubkey FROM internal_user_infos
+                WHERE phone_number = %s AND pubkey != %s''', (kwargs['phone_number'], pubkey))
+            # users with same phone number
+            users = sql.fetchall()
+        if users:
+            LOGGER.warning("phone number %s already in use by ", kwargs['phone_number'], users[0]['pubkey'])
+            raise PhoneNumberAlreadyInUse("phone number %s already in use", kwargs['phone_number'])
 
     user_details = get_user_infos(pubkey)
     if kwargs:

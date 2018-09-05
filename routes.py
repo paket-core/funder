@@ -35,7 +35,7 @@ webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_cents'] = webserver.validation
 webserver.validation.KWARGS_CHECKERS_AND_FIXERS['call_sign'] = check_call_sign
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.FundLimitReached] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.NotVerified] = 403
-webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.PhoneAlreadyInUse] = 403
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.PhoneNumberAlreadyInUse] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
 
 
