@@ -132,13 +132,12 @@ def send_verification_code(user_pubkey):
 
 def check_verification_code(user_pubkey, verification_code):
     """
-    Check verification code validity and create account
-    if it was first phone verification.
+    Check verification code validity and create stellar account if it is not created yet..
     """
     authy_id = set_internal_user_info(user_pubkey).get('authy_id', None)
     if authy_id is None:
         # TODO: add some custom exception
-        pass
+        raise AssertionError('user does not received verification code')
     verification = AUTHY_API.tokens.verify(authy_id, verification_code)
 
     if not verification.ok():
