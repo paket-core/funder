@@ -101,20 +101,28 @@ def init_db():
         LOGGER.debug('fundings table created')
 
 
-def send_verification_code(user_pubkey, phone_number, authy_id):
-    """Send verification code to specified phone number if it is new user and phone has been never used before."""
-    with SQL_CONNECTION() as sql:
-        sql.execute('''
-            SELECT phone_number, pubkey, full_name  FROM internal_user_infos
-            WHERE phone_number = %s AND pubkey != %s LIMIT 1''', (phone_number, user_pubkey))
-        phone_numbers = sql.fetchall()
+def send_verification_code(user_pubkey):
+    """Send verification code to user's phone number."""
+    user_info = set_internal_user_info(user_pubkey)
 
-    if phone_numbers:
-        error_msg = "phone {} already in use by user {} (pubkey: {})".format(
-            phone_numbers[0]['phone_number'], phone_numbers[0]['full_name'], phone_numbers[0]['pubkey'])
-        raise PhoneAlreadyInUse(error_msg)
+    if 'phone_number' not in user_info:
+        # TODO : add custom exception
+        raise AssertionError('phone number does not provided')
 
-    # FIXME: Add proper eror handling
+    if user_info['authy_id'] is not None:
+        authy_id = user_info['authy_id']
+    else:
+        # FIXME: It is temporary workaround
+        full_phone_number = user_info['phone_number'].replace('+', '')
+        country_code = full_phone_number[:3]
+        phone_number = full_phone_number[3:]
+        authy_user = AUTHY_API.users.create('paket@mockemails.moc', phone_number, country_code)
+        if not authy_user.ok():
+            raise AssertionError(authy_user.errors())
+        authy_id = authy_user.id
+        set_internal_user_info(user_pubkey, authy_id=authy_id)
+
+    # FIXME: Add proper error handling
     sms = AUTHY_API.users.request_sms(authy_id)
     if not sms.ok():
         raise AssertionError(sms.errors())
@@ -201,18 +209,6 @@ def set_internal_user_info(pubkey, **kwargs):
 
     user_details = get_user_infos(pubkey)
     if kwargs:
-        if 'phone_number' in kwargs and 'phone_number' not in user_details:
-            # FIXME: It is temporary workaround
-            full_phone_number = kwargs['phone_number'].replace('+', '')
-            country_code = full_phone_number[:3]
-            phone_number = full_phone_number[3:]
-            authy_user = AUTHY_API.users.create('paket@mockemails.moc', phone_number, country_code)
-            if not authy_user.ok():
-                raise AssertionError(authy_user.errors())
-            # TODO: add code for handling unsuccessful request
-            kwargs['authy_id'] = authy_user.id
-            send_verification_code(pubkey, kwargs['phone_number'], authy_user.id)
-
         user_details.update(kwargs)
         user_details['pubkey'] = pubkey
         if 'timestamp' in user_details:

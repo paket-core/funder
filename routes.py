@@ -95,6 +95,17 @@ def purchase_bul_handler(user_pubkey, euro_cents, payment_currency):
     return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, euro_cents, payment_currency, 'BUL')}
 
 
+@BLUEPRINT.route("/v{}/send_verification_code".format(VERSION), methods=['POST'])
+@flasgger.swag_from(swagger_specs.SEND_VERIFICATION_CODE)
+@webserver.validation.call(require_auth=True)
+def send_verification_code_handler(user_pubkey):
+    """
+    Send verification code to user.
+    """
+    db.send_verification_code(user_pubkey)
+    return {'status': 200, 'code_sent': True}
+
+
 @BLUEPRINT.route("/v{}/verify_code".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.VERIFY_CODE)
 @webserver.validation.call(['verification_code'], require_auth=True)
