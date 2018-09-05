@@ -287,6 +287,14 @@ def get_daily_spent_euro():
 
 def create_and_fund(user_pubkey):
     """Create account and fund it with starting XLM and BUL amounts"""
+    try:
+        paket_stellar.get_bul_account(user_pubkey, accept_untrusted=True)
+    except paket_stellar.stellar_base.address.AccountNotExistError:
+        LOGGER.info("stellar account with pubkey %s does not exists and will be created", user_pubkey)
+    else:
+        LOGGER.info("stellar account with pubkey %s already exists", user_pubkey)
+        return
+
     daily_spent_euro = get_daily_spent_euro()
     if daily_spent_euro >= DAILY_FUND_LIMIT:
         raise FundLimitReached('daily fund limit reached')
