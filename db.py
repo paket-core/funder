@@ -226,9 +226,6 @@ def set_internal_user_info(pubkey, **kwargs):
         if all([user_details.get(key) for key in ['full_name', 'phone_number', 'address']]):
             update_test(pubkey, 'basic', csl_reader.CSLListChecker().basic_test(user_details['full_name']))
 
-    if 'authy_id' in user_details:
-        del user_details['authy_id']
-        
     return user_details
 
 
