@@ -5,6 +5,7 @@ import time
 
 import pywallet.wallet
 import authy.api
+import phonenumbers
 
 import paket_stellar
 import util.db
@@ -208,20 +209,33 @@ def set_internal_user_info(pubkey, **kwargs):
     # Verify user exists.
     get_user(pubkey)
 
-    # prevent using phone number that already in use
-    if 'phone_number' in kwargs:
-        with SQL_CONNECTION() as sql:
-            sql.execute('''
-                SELECT pubkey FROM internal_user_infos
-                WHERE phone_number = %s AND pubkey != %s''', (kwargs['phone_number'], pubkey))
-            # users with same phone number
-            users = sql.fetchall()
-        if users:
-            LOGGER.warning("phone number %s already in use by ", kwargs['phone_number'], users[0]['pubkey'])
-            raise PhoneNumberAlreadyInUse("phone number %s already in use", kwargs['phone_number'])
-
     user_details = get_user_infos(pubkey)
     if kwargs:
+        if 'phone_number' in kwargs:
+            # validate and fix (if possible) phone number
+            # TODO: add custom exception
+            try:
+                phone_number = phonenumbers.parse(kwargs['phone_numbers'])
+                valid_number = phonenumbers.is_valid_number(phone_number)
+                possible_number = phonenumbers.is_possible_number(phone_number)
+                if not valid_number or not possible_number:
+                    raise AssertionError('Invalid phone number')
+                kwargs['phone_number'] = phonenumbers.format_number(
+                    phone_number, phonenumbers.PhoneNumberFormat.E164)
+            except phonenumbers.phonenumberutil.NumberParseException as exc:
+                raise AssertionError("Invalid phone number. ".format(str(exc)))
+
+            # prevent using phone number that already in use
+            with SQL_CONNECTION() as sql:
+                sql.execute('''
+                    SELECT pubkey FROM internal_user_infos
+                    WHERE phone_number = %s AND pubkey != %s''', (kwargs['phone_number'], pubkey))
+                # users with same phone number
+                users = sql.fetchall()
+            if users:
+                LOGGER.warning("phone number %s already in use by ", kwargs['phone_number'], users[0]['pubkey'])
+                raise PhoneNumberAlreadyInUse("phone number %s already in use", kwargs['phone_number'])
+
         user_details.update(kwargs)
         user_details['pubkey'] = pubkey
         if 'timestamp' in user_details:
