@@ -8,4 +8,5 @@ pywallet==0.0.7
 requests==2.18.4
 rlp==0.6.0
 authy==2.2.2
+phonenumbers=8.9.12
 web3==4.4.1
