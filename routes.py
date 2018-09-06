@@ -114,6 +114,17 @@ def verify_code_handler(user_pubkey, verification_code):
     return {'status': 200, 'verified': True}
 
 
+@BLUEPRINT.route("/v{}/ratio".format(VERSION), methods=['POST'])
+@flasgger.swag_from(swagger_specs.RATIO)
+@webserver.validation.call(['currency'])
+def ration_handler(currency):
+    """
+    Get XLM price in EUR cents.
+    """
+    return {'status': 200, 'ratio': db.currency_conversions.currency_to_euro_cents(
+        currency, 1 * 10 ** db.util.conversion.STELLAR_DECIMALS)}
+
+
 @BLUEPRINT.route("/v{}/debug/users".format(VERSION), methods=['GET'])
 @flasgger.swag_from(swagger_specs.USERS)
 @webserver.validation.call
