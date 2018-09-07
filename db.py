@@ -215,7 +215,7 @@ def set_internal_user_info(pubkey, **kwargs):
             # validate and fix (if possible) phone number
             # TODO: add custom exception
             try:
-                phone_number = phonenumbers.parse(kwargs['phone_numbers'])
+                phone_number = phonenumbers.parse(kwargs['phone_number'])
                 valid_number = phonenumbers.is_valid_number(phone_number)
                 possible_number = phonenumbers.is_possible_number(phone_number)
                 if not valid_number or not possible_number:
