@@ -104,7 +104,7 @@ def init_db():
 
 def request_verification_code(user_pubkey):
     """Send verification code to user's phone number."""
-    user_info = set_internal_user_info(user_pubkey)
+    user_info = get_user_infos(user_pubkey)
 
     # TODO : add custom exceptions
     if 'phone_number' not in user_info:
@@ -115,11 +115,9 @@ def request_verification_code(user_pubkey):
     if user_info['authy_id'] is not None:
         authy_id = user_info['authy_id']
     else:
-        # FIXME: It is temporary workaround
-        full_phone_number = user_info['phone_number'].replace('+', '')
-        country_code = full_phone_number[:3]
-        phone_number = full_phone_number[3:]
-        authy_user = AUTHY_API.users.create('paket@mockemails.moc', phone_number, country_code)
+        parsed_phone_number = phonenumbers.parse(user_info['phone_number'])
+        authy_user = AUTHY_API.users.create(
+            'paket@mockemails.moc', parsed_phone_number.national_number, parsed_phone_number.country_code)
         if not authy_user.ok():
             raise AssertionError(authy_user.errors())
         authy_id = authy_user.id
