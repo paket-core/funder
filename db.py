@@ -105,7 +105,7 @@ def init_db():
 
 def request_verification_code(user_pubkey):
     """Send verification code to user's phone number."""
-    user_info = get_user_infos(user_pubkey)
+    user_info = get_internal_user_infos(user_pubkey)
 
     # TODO : add custom exceptions
     if 'phone_number' not in user_info:
@@ -134,7 +134,7 @@ def check_verification_code(user_pubkey, verification_code):
     """
     Check verification code validity and create stellar account if it is not created yet..
     """
-    authy_id = set_internal_user_info(user_pubkey).get('authy_id', None)
+    authy_id = get_internal_user_infos(user_pubkey).get('authy_id', None)
     if authy_id is None:
         # TODO: add some custom exception
         raise AssertionError('user does not received verification code')
@@ -190,7 +190,7 @@ def get_test_result(pubkey, test_name):
             return 0
 
 
-def get_user_infos(pubkey):
+def get_internal_user_infos(pubkey):
     """Get all user infos."""
     with SQL_CONNECTION() as sql:
         sql.execute(
@@ -203,12 +203,20 @@ def get_user_infos(pubkey):
             return {}
 
 
+def get_user_infos(pubkey):
+    """Get user infos, excluding sensitive data."""
+    user_infos = get_internal_user_infos(pubkey)
+    if 'authy_id' in user_infos:
+        del user_infos['authy_id']
+    return user_infos
+
+
 def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
     # Verify user exists.
     get_user(pubkey)
 
-    user_details = get_user_infos(pubkey)
+    user_details = get_internal_user_infos(pubkey)
     if kwargs:
         if 'phone_number' in kwargs:
             # validate and fix (if possible) phone number
@@ -222,7 +230,7 @@ def set_internal_user_info(pubkey, **kwargs):
                 kwargs['phone_number'] = phonenumbers.format_number(
                     phone_number, phonenumbers.PhoneNumberFormat.E164)
             except phonenumbers.phonenumberutil.NumberParseException as exc:
-                raise AssertionError("Invalid phone number. ".format(str(exc)))
+                raise AssertionError("Invalid phone number. {}".format(str(exc)))
 
         user_details.update(kwargs)
         user_details['pubkey'] = pubkey
@@ -236,8 +244,6 @@ def set_internal_user_info(pubkey, **kwargs):
         # Run basic test as soon as (and every time) all basic details are filled.
         if all([user_details.get(key) for key in ['full_name', 'phone_number', 'address']]):
             update_test(pubkey, 'basic', csl_reader.CSLListChecker().basic_test(user_details['full_name']))
-
-    return user_details
 
 
 def get_monthly_allowance(pubkey):

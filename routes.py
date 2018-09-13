@@ -67,7 +67,9 @@ def user_infos_handler(user_pubkey, **kwargs):
     """
     Set user details.
     """
-    return {'status': 200, 'user_details': db.set_internal_user_info(user_pubkey, **kwargs)}
+    if kwargs:
+        db.set_internal_user_info(user_pubkey, **kwargs)
+    return {'status': 200, 'user_details': db.get_user_infos(user_pubkey)}
 
 
 @BLUEPRINT.route("/v{}/purchase_xlm".format(VERSION), methods=['POST'])
