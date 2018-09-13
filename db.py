@@ -14,7 +14,7 @@ import util.conversion
 import csl_reader
 import currency_conversions
 
-AUTHY_API_KEY = os.environ.get('PAKET_AUTHY_API')
+AUTHY_API_KEY = os.environ.get('PAKET_AUTHY_API_KEY')
 AUTHY_API = authy.api.AuthyApiClient(AUTHY_API_KEY)
 LOGGER = logging.getLogger('pkt.funder.db')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
