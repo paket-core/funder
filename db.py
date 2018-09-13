@@ -26,11 +26,12 @@ DB_USER = os.environ.get('PAKET_DB_USER', 'root')
 DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
-# limits to fund (in euro-cents)
-HOURLY_FUND_LIMIT = 5000
-DAILY_FUND_LIMIT = 10000
-XLM_STARTING_BALANCE = 1000000000 if DEBUG else 15000000 + currency_conversions.euro_cents_to_xlm_stroops(100)
-BUL_STARTING_BALANCE = 1000000000 if DEBUG else currency_conversions.euro_cents_to_bul_stroops(500)
+HOURLY_FUND_LIMIT = int(os.environ.get('PAKET_HOURLY_FUND_LIMIT'))
+DAILY_FUND_LIMIT = int(os.environ.get('PAKET_DAILY_FUND_LIMIT'))
+EUR_XLM_STARTING_BALANCE = int(os.environ.get('PAKET_EUR_XLM_STARTING_BALANCE'))
+EUR_BUL_STARTING_BALANCE = int(os.environ.get('PAKET_EUR_BUL_STARTING_BALANCE'))
+XLM_STARTING_BALANCE = currency_conversions.euro_cents_to_xlm_stroops(EUR_XLM_STARTING_BALANCE)
+BUL_STARTING_BALANCE = currency_conversions.euro_cents_to_bul_stroops(EUR_BUL_STARTING_BALANCE)
 MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
 BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 5000))
 
