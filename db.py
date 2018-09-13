@@ -223,17 +223,6 @@ def set_internal_user_info(pubkey, **kwargs):
             except phonenumbers.phonenumberutil.NumberParseException as exc:
                 raise AssertionError("Invalid phone number. ".format(str(exc)))
 
-            # prevent using phone number that already in use
-            with SQL_CONNECTION() as sql:
-                sql.execute('''
-                    SELECT pubkey FROM internal_user_infos
-                    WHERE phone_number = %s AND pubkey != %s''', (kwargs['phone_number'], pubkey))
-                # users with same phone number
-                users = sql.fetchall()
-            if users:
-                LOGGER.warning("phone number %s already in use by ", kwargs['phone_number'], users[0]['pubkey'])
-                raise PhoneNumberAlreadyInUse("phone number %s already in use", kwargs['phone_number'])
-
         user_details.update(kwargs)
         user_details['pubkey'] = pubkey
         if 'timestamp' in user_details:
