@@ -40,8 +40,16 @@ class FundLimitReached(Exception):
     """Unable to fund account because fund limit was reached."""
 
 
-class NotVerified(Exception):
-    """User sent invalid or expired verification code."""
+class NotEnoughInfo(Exception):
+    """User does not provided enough information about himself."""
+
+
+class InvalidToken(Exception):
+    """User sent invalid or expired verification token."""
+
+
+class InvalidPhoneNumber(Exception):
+    """User provided invalid phone number."""
 
 
 class PhoneNumberAlreadyInUse(Exception):
@@ -103,15 +111,14 @@ def init_db():
         LOGGER.debug('fundings table created')
 
 
-def request_verification_code(user_pubkey):
-    """Send verification code to user's phone number."""
+def request_verification_token(user_pubkey):
+    """Send verification token to user's phone."""
     user_info = get_internal_user_infos(user_pubkey)
 
-    # TODO : add custom exceptions
     if 'phone_number' not in user_info:
-        raise AssertionError('phone number does not provided')
+        raise NotEnoughInfo('phone number does not provided')
     if not get_test_result(user_pubkey, 'basic'):
-        raise AssertionError('user does not passed KYC')
+        raise NotEnoughInfo('user does not passed KYC')
 
     if user_info['authy_id'] is not None:
         authy_id = user_info['authy_id']
@@ -120,28 +127,27 @@ def request_verification_code(user_pubkey):
         authy_user = AUTHY_API.users.create(
             'paket@mockemails.moc', parsed_phone_number.national_number, parsed_phone_number.country_code)
         if not authy_user.ok():
-            raise AssertionError(authy_user.errors())
+            raise authy.AuthyException(authy_user.errors())
         authy_id = authy_user.id
         set_internal_user_info(user_pubkey, authy_id=authy_id)
 
-    # FIXME: Add proper error handling
     sms = AUTHY_API.users.request_sms(authy_id)
     if not sms.ok():
-        raise AssertionError(sms.errors())
+        raise authy.AuthyException(sms.errors())
 
 
-def check_verification_code(user_pubkey, verification_code):
+def check_verification_token(user_pubkey, verification_token):
     """
-    Check verification code validity and create stellar account if it is not created yet..
+    Check verification token validity and create stellar account if it is not created yet.
     """
     authy_id = get_internal_user_infos(user_pubkey).get('authy_id', None)
     if authy_id is None:
-        # TODO: add some custom exception
-        raise AssertionError('user does not received verification code')
-    verification = AUTHY_API.tokens.verify(authy_id, verification_code)
+        raise NotEnoughInfo(
+            "user does not provided correct phone number and can not be able to receive verification tokens")
+    verification = AUTHY_API.tokens.verify(authy_id, verification_token)
 
     if not verification.ok():
-        raise NotVerified('verification code invalid or expired')
+        raise InvalidToken('verification token invalid or expired')
 
     with SQL_CONNECTION() as sql:
         sql.execute("SELECT * FROM purchases WHERE user_pubkey = %s", (user_pubkey,))
@@ -220,17 +226,16 @@ def set_internal_user_info(pubkey, **kwargs):
     if kwargs:
         if 'phone_number' in kwargs:
             # validate and fix (if possible) phone number
-            # TODO: add custom exception
             try:
                 phone_number = phonenumbers.parse(kwargs['phone_number'])
                 valid_number = phonenumbers.is_valid_number(phone_number)
                 possible_number = phonenumbers.is_possible_number(phone_number)
                 if not valid_number or not possible_number:
-                    raise AssertionError('Invalid phone number')
+                    raise InvalidPhoneNumber('Invalid phone number')
                 kwargs['phone_number'] = phonenumbers.format_number(
                     phone_number, phonenumbers.PhoneNumberFormat.E164)
             except phonenumbers.phonenumberutil.NumberParseException as exc:
-                raise AssertionError("Invalid phone number. {}".format(str(exc)))
+                raise InvalidPhoneNumber("Invalid phone number. {}".format(str(exc)))
 
         user_details.update(kwargs)
         user_details['pubkey'] = pubkey

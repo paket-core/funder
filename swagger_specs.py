@@ -112,25 +112,24 @@ PURCHASE_BUL = {
         '201': {'description': 'payment address generated'},
         '403': {'description': 'user not authorized'}}}
 
-REQUEST_VERIFICATION_CODE = {
+REQUEST_VERIFICATION_TOKEN = {
     'parameters': [
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'}],
     'responses': {
         '200': {'description': 'code sent'},
-        '403': {'description': 'not all user info was provided'}}
-}
+        '403': {'description': 'not all user info was provided'}}}
 
-VERIFY_CODE = {
+VERIFY_TOKEN = {
     'parameters': [
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'verification_code', 'in': 'formData', 'type': 'string', 'required': True}],
+        {'name': 'verification_token', 'in': 'formData', 'type': 'string', 'required': True}],
     'responses': {
-        '200': {'description': 'code verified'},
-        '403': {'description': 'invalid or expired code'}}}
+        '200': {'description': 'token verified'},
+        '403': {'description': 'invalid or expired token'}}}
 
 
 USERS = {'tags': ['debug'], 'responses': {'200': {'description': 'dict of users'}}}

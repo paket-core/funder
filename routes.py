@@ -33,9 +33,11 @@ def check_call_sign(key, value):
 # Input validators and fixers.
 webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_cents'] = webserver.validation.check_and_fix_natural
 webserver.validation.KWARGS_CHECKERS_AND_FIXERS['call_sign'] = check_call_sign
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.authy.AuthyException] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.FundLimitReached] = 403
-webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.NotVerified] = 403
-webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.PhoneNumberAlreadyInUse] = 403
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.NotEnoughInfo] = 403
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.InvalidToken] = 403
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.InvalidPhoneNumber] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
 
 
@@ -94,25 +96,25 @@ def purchase_bul_handler(user_pubkey, euro_cents, payment_currency):
     return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, euro_cents, payment_currency, 'BUL')}
 
 
-@BLUEPRINT.route("/v{}/request_verification_code".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.REQUEST_VERIFICATION_CODE)
+@BLUEPRINT.route("/v{}/request_verification_token".format(VERSION), methods=['POST'])
+@flasgger.swag_from(swagger_specs.REQUEST_VERIFICATION_TOKEN)
 @webserver.validation.call(require_auth=True)
-def request_verification_code_handler(user_pubkey):
+def request_verification_token_handler(user_pubkey):
     """
-    Send verification code to user.
+    Send verification token to user.
     """
-    db.request_verification_code(user_pubkey)
-    return {'status': 200, 'code_sent': True}
+    db.request_verification_token(user_pubkey)
+    return {'status': 200, 'token_sent': True}
 
 
-@BLUEPRINT.route("/v{}/verify_code".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.VERIFY_CODE)
-@webserver.validation.call(['verification_code'], require_auth=True)
-def verify_code_handler(user_pubkey, verification_code):
+@BLUEPRINT.route("/v{}/verify_token".format(VERSION), methods=['POST'])
+@flasgger.swag_from(swagger_specs.VERIFY_TOKEN)
+@webserver.validation.call(['verification_token'], require_auth=True)
+def verify_code_handler(user_pubkey, verification_token):
     """
-    Verify code received in sms.
+    Verify token received in sms.
     """
-    db.check_verification_code(user_pubkey, verification_code)
+    db.check_verification_token(user_pubkey, verification_token)
     return {'status': 200, 'verified': True}
 
 
