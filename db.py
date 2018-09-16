@@ -14,7 +14,7 @@ import util.conversion
 import csl_reader
 import currency_conversions
 
-AUTHY_API_KEY = os.environ.get('PAKET_AUTHY_API')
+AUTHY_API_KEY = os.environ.get('PAKET_AUTHY_API_KEY')
 AUTHY_API = authy.api.AuthyApiClient(AUTHY_API_KEY)
 LOGGER = logging.getLogger('pkt.funder.db')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
@@ -26,11 +26,12 @@ DB_USER = os.environ.get('PAKET_DB_USER', 'root')
 DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
-# limits to fund (in euro-cents)
-HOURLY_FUND_LIMIT = 5000
-DAILY_FUND_LIMIT = 10000
-XLM_STARTING_BALANCE = 1000000000 if DEBUG else 15000000 + currency_conversions.euro_cents_to_xlm_stroops(100)
-BUL_STARTING_BALANCE = 1000000000 if DEBUG else currency_conversions.euro_cents_to_bul_stroops(500)
+HOURLY_FUND_LIMIT = int(os.environ.get('PAKET_HOURLY_FUND_LIMIT'))
+DAILY_FUND_LIMIT = int(os.environ.get('PAKET_DAILY_FUND_LIMIT'))
+EUR_XLM_STARTING_BALANCE = int(os.environ.get('PAKET_EUR_XLM_STARTING_BALANCE'))
+EUR_BUL_STARTING_BALANCE = int(os.environ.get('PAKET_EUR_BUL_STARTING_BALANCE'))
+XLM_STARTING_BALANCE = currency_conversions.euro_cents_to_xlm_stroops(EUR_XLM_STARTING_BALANCE)
+BUL_STARTING_BALANCE = currency_conversions.euro_cents_to_bul_stroops(EUR_BUL_STARTING_BALANCE)
 MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
 BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 5000))
 
@@ -39,8 +40,16 @@ class FundLimitReached(Exception):
     """Unable to fund account because fund limit was reached."""
 
 
-class NotVerified(Exception):
-    """User sent invalid or expired verification code."""
+class NotEnoughInfo(Exception):
+    """User does not provided enough information about himself."""
+
+
+class InvalidToken(Exception):
+    """User sent invalid or expired verification token."""
+
+
+class InvalidPhoneNumber(Exception):
+    """User provided invalid phone number."""
 
 
 class PhoneNumberAlreadyInUse(Exception):
@@ -102,15 +111,14 @@ def init_db():
         LOGGER.debug('fundings table created')
 
 
-def request_verification_code(user_pubkey):
-    """Send verification code to user's phone number."""
-    user_info = get_user_infos(user_pubkey)
+def request_verification_token(user_pubkey):
+    """Send verification token to user's phone."""
+    user_info = get_internal_user_infos(user_pubkey)
 
-    # TODO : add custom exceptions
     if 'phone_number' not in user_info:
-        raise AssertionError('phone number does not provided')
+        raise NotEnoughInfo('phone number does not provided')
     if not get_test_result(user_pubkey, 'basic'):
-        raise AssertionError('user does not passed KYC')
+        raise NotEnoughInfo('user does not passed KYC')
 
     if user_info['authy_id'] is not None:
         authy_id = user_info['authy_id']
@@ -119,28 +127,27 @@ def request_verification_code(user_pubkey):
         authy_user = AUTHY_API.users.create(
             'paket@mockemails.moc', parsed_phone_number.national_number, parsed_phone_number.country_code)
         if not authy_user.ok():
-            raise AssertionError(authy_user.errors())
+            raise authy.AuthyException(authy_user.errors())
         authy_id = authy_user.id
         set_internal_user_info(user_pubkey, authy_id=authy_id)
 
-    # FIXME: Add proper error handling
     sms = AUTHY_API.users.request_sms(authy_id)
     if not sms.ok():
-        raise AssertionError(sms.errors())
+        raise authy.AuthyException(sms.errors())
 
 
-def check_verification_code(user_pubkey, verification_code):
+def check_verification_token(user_pubkey, verification_token):
     """
-    Check verification code validity and create stellar account if it is not created yet..
+    Check verification token validity and create stellar account if it is not created yet.
     """
-    authy_id = set_internal_user_info(user_pubkey).get('authy_id', None)
+    authy_id = get_internal_user_infos(user_pubkey).get('authy_id', None)
     if authy_id is None:
-        # TODO: add some custom exception
-        raise AssertionError('user does not received verification code')
-    verification = AUTHY_API.tokens.verify(authy_id, verification_code)
+        raise NotEnoughInfo(
+            "user does not provided correct phone number and can not be able to receive verification tokens")
+    verification = AUTHY_API.tokens.verify(authy_id, verification_token)
 
     if not verification.ok():
-        raise NotVerified('verification code invalid or expired')
+        raise InvalidToken('verification token invalid or expired')
 
     with SQL_CONNECTION() as sql:
         sql.execute("SELECT * FROM purchases WHERE user_pubkey = %s", (user_pubkey,))
@@ -189,7 +196,7 @@ def get_test_result(pubkey, test_name):
             return 0
 
 
-def get_user_infos(pubkey):
+def get_internal_user_infos(pubkey):
     """Get all user infos."""
     with SQL_CONNECTION() as sql:
         sql.execute(
@@ -202,37 +209,33 @@ def get_user_infos(pubkey):
             return {}
 
 
+def get_user_infos(pubkey):
+    """Get user infos, excluding sensitive data."""
+    user_infos = get_internal_user_infos(pubkey)
+    if 'authy_id' in user_infos:
+        del user_infos['authy_id']
+    return user_infos
+
+
 def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
     # Verify user exists.
     get_user(pubkey)
 
-    user_details = get_user_infos(pubkey)
+    user_details = get_internal_user_infos(pubkey)
     if kwargs:
         if 'phone_number' in kwargs:
             # validate and fix (if possible) phone number
-            # TODO: add custom exception
             try:
                 phone_number = phonenumbers.parse(kwargs['phone_number'])
                 valid_number = phonenumbers.is_valid_number(phone_number)
                 possible_number = phonenumbers.is_possible_number(phone_number)
                 if not valid_number or not possible_number:
-                    raise AssertionError('Invalid phone number')
+                    raise InvalidPhoneNumber('Invalid phone number')
                 kwargs['phone_number'] = phonenumbers.format_number(
                     phone_number, phonenumbers.PhoneNumberFormat.E164)
             except phonenumbers.phonenumberutil.NumberParseException as exc:
-                raise AssertionError("Invalid phone number. ".format(str(exc)))
-
-            # prevent using phone number that already in use
-            with SQL_CONNECTION() as sql:
-                sql.execute('''
-                    SELECT pubkey FROM internal_user_infos
-                    WHERE phone_number = %s AND pubkey != %s''', (kwargs['phone_number'], pubkey))
-                # users with same phone number
-                users = sql.fetchall()
-            if users:
-                LOGGER.warning("phone number %s already in use by ", kwargs['phone_number'], users[0]['pubkey'])
-                raise PhoneNumberAlreadyInUse("phone number %s already in use", kwargs['phone_number'])
+                raise InvalidPhoneNumber("Invalid phone number. {}".format(str(exc)))
 
         user_details.update(kwargs)
         user_details['pubkey'] = pubkey
@@ -246,8 +249,6 @@ def set_internal_user_info(pubkey, **kwargs):
         # Run basic test as soon as (and every time) all basic details are filled.
         if all([user_details.get(key) for key in ['full_name', 'phone_number', 'address']]):
             update_test(pubkey, 'basic', csl_reader.CSLListChecker().basic_test(user_details['full_name']))
-
-    return user_details
 
 
 def get_monthly_allowance(pubkey):
