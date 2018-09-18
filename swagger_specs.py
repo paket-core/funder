@@ -131,5 +131,11 @@ VERIFY_TOKEN = {
         '200': {'description': 'token verified'},
         '403': {'description': 'invalid or expired token'}}}
 
+RATIO = {
+    'parameters': [
+        {'name': 'currency', 'in': 'formData', 'type': 'string', 'required': True, 'description': 'XLM'}],
+    'responces': {
+        '200': 'Euro cents price by one unit of specified currency'}
+}
 
 USERS = {'tags': ['debug'], 'responses': {'200': {'description': 'dict of users'}}}
