@@ -164,10 +164,23 @@ def check_verification_token(user_pubkey, verification_token):
 def create_user(pubkey, call_sign):
     """Create a new user."""
     try:
-        with SQL_CONNECTION() as sql:
-            sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (%s, %s)", (pubkey, call_sign))
-    except util.db.mysql.connector.IntegrityError:
-        raise UserAlreadyExists("user with provided credentials already exists")
+        get_user(pubkey=pubkey)
+    except UnknownUser:
+        pass
+    else:
+        raise UserAlreadyExists(
+            "user with provided pubkey ({}) already exists".format(pubkey))
+
+    try:
+        get_user(call_sign=call_sign)
+    except UnknownUser:
+        pass
+    else:
+        raise UserAlreadyExists(
+            "user with provided call_sign ({}) already exists".format(call_sign))
+
+    with SQL_CONNECTION() as sql:
+        sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (%s, %s)", (pubkey, call_sign))
 
 
 def get_user(pubkey=None, call_sign=None):
