@@ -60,6 +60,10 @@ class UnknownUser(Exception):
     """Requested user does not exist."""
 
 
+class UserAlreadyExists(Exception):
+    """User already exists."""
+
+
 def init_db():
     """Initialize the database."""
     with SQL_CONNECTION() as sql:
@@ -159,8 +163,11 @@ def check_verification_token(user_pubkey, verification_token):
 
 def create_user(pubkey, call_sign):
     """Create a new user."""
-    with SQL_CONNECTION() as sql:
-        sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (%s, %s)", (pubkey, call_sign))
+    try:
+        with SQL_CONNECTION() as sql:
+            sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (%s, %s)", (pubkey, call_sign))
+    except util.db.mysql.connector.IntegrityError:
+        raise UserAlreadyExists("user with provided credentials already exists")
 
 
 def get_user(pubkey=None, call_sign=None):

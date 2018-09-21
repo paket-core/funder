@@ -39,6 +39,7 @@ webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.NotEnoughInfo] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.InvalidToken] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.InvalidPhoneNumber] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UserAlreadyExists] = 403
 
 
 @BLUEPRINT.route("/v{}/create_user".format(VERSION), methods=['POST'])
