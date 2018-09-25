@@ -62,8 +62,6 @@ class CSLListChecker:
             util.countly.send_countly_event('download csl', 1, end_session=1)
         except Exception as exception:
             LOGGER.warning("error loading %s, error: %s", cls.url, exception)
-
-        LOGGER.info(open(cls.filename, 'r'))  # FIXME whats this? Why in info? file should be closed?
         # pylint: enable=broad-except
 
     @classmethod
