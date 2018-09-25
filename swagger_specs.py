@@ -64,10 +64,7 @@ CREATE_USER = {
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'call_sign', 'in': 'formData', 'required': True, 'type': 'string'},
-        {'name': 'full_name', 'in': 'formData', 'type': 'string', 'required': False},
-        {'name': 'phone_number', 'in': 'formData', 'type': 'string', 'required': False},
-        {'name': 'address', 'in': 'formData', 'type': 'string', 'required': False}],
+        {'name': 'call_sign', 'in': 'formData', 'required': True, 'type': 'string'}],
     'responses': {
         '201': {'description': 'user created'},
         '400': {'description': 'bad Request: pubkey or call_sign are not unique'}}}
@@ -114,5 +111,31 @@ PURCHASE_BUL = {
     'responses': {
         '201': {'description': 'payment address generated'},
         '403': {'description': 'user not authorized'}}}
+
+REQUEST_VERIFICATION_TOKEN = {
+    'parameters': [
+        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'}],
+    'responses': {
+        '200': {'description': 'code sent'},
+        '403': {'description': 'not all user info was provided'}}}
+
+VERIFY_TOKEN = {
+    'parameters': [
+        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'verification_token', 'in': 'formData', 'type': 'string', 'required': True}],
+    'responses': {
+        '200': {'description': 'token verified'},
+        '403': {'description': 'invalid or expired token'}}}
+
+RATIO = {
+    'parameters': [
+        {'name': 'currency', 'in': 'formData', 'type': 'string', 'required': True, 'description': 'XLM'}],
+    'responces': {
+        '200': 'Euro cents price by one unit of specified currency'}
+}
 
 USERS = {'tags': ['debug'], 'responses': {'200': {'description': 'dict of users'}}}

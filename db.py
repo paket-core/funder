@@ -4,13 +4,21 @@ import os
 import time
 
 import pywallet.wallet
+import authy.api
+import phonenumbers
 
+import paket_stellar
 import util.db
+import util.conversion
 
 import csl_reader
+import currency_conversions
 
+AUTHY_API_KEY = os.environ.get('PAKET_AUTHY_API_KEY')
+AUTHY_API = authy.api.AuthyApiClient(AUTHY_API_KEY)
 LOGGER = logging.getLogger('pkt.funder.db')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
+FUNDER_SEED = os.environ['PAKET_FUNDER_SEED']
 XPUB = os.environ['PAKET_PAYMENT_XPUB']
 DB_HOST = os.environ.get('PAKET_DB_HOST', '127.0.0.1')
 DB_PORT = int(os.environ.get('PAKET_DB_PORT', 3306))
@@ -18,12 +26,42 @@ DB_USER = os.environ.get('PAKET_DB_USER', 'root')
 DB_PASSWORD = os.environ.get('PAKET_DB_PASSWORD')
 DB_NAME = os.environ.get('PAKET_DB_NAME', 'paket')
 SQL_CONNECTION = util.db.custom_sql_connection(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
+HOURLY_FUND_LIMIT = int(os.environ.get('PAKET_HOURLY_FUND_LIMIT'))
+DAILY_FUND_LIMIT = int(os.environ.get('PAKET_DAILY_FUND_LIMIT'))
+EUR_XLM_STARTING_BALANCE = int(os.environ.get('PAKET_EUR_XLM_STARTING_BALANCE'))
+EUR_BUL_STARTING_BALANCE = int(os.environ.get('PAKET_EUR_BUL_STARTING_BALANCE'))
+XLM_STARTING_BALANCE = currency_conversions.euro_cents_to_xlm_stroops(EUR_XLM_STARTING_BALANCE)
+BUL_STARTING_BALANCE = currency_conversions.euro_cents_to_bul_stroops(EUR_BUL_STARTING_BALANCE)
 MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
 BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 5000))
 
 
+class FundLimitReached(Exception):
+    """Unable to fund account because fund limit was reached."""
+
+
+class NotEnoughInfo(Exception):
+    """User does not provided enough information about himself."""
+
+
+class InvalidToken(Exception):
+    """User sent invalid or expired verification token."""
+
+
+class InvalidPhoneNumber(Exception):
+    """User provided invalid phone number."""
+
+
+class PhoneNumberAlreadyInUse(Exception):
+    """Specified phone number already in use by another user."""
+
+
 class UnknownUser(Exception):
     """Requested user does not exist."""
+
+
+class UserAlreadyExists(Exception):
+    """User already exists."""
 
 
 def init_db():
@@ -41,6 +79,7 @@ def init_db():
                 full_name VARCHAR(256),
                 phone_number VARCHAR(32),
                 address VARCHAR(1024),
+                authy_id varchar(56),
                 PRIMARY KEY (timestamp, pubkey),
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('internal_user_infos table created')
@@ -64,10 +103,82 @@ def init_db():
                 paid INTEGER DEFAULT 0,
                 FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('purchases table created')
+        sql.execute('''
+            CREATE TABLE fundings(
+                timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                user_pubkey VARCHAR(56) NOT NULL,
+                currency VARCHAR(3),
+                currency_amount INTEGER,
+                euro_cents INTEGER,
+                PRIMARY KEY (timestamp, user_pubkey),
+                FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
+        LOGGER.debug('fundings table created')
+
+
+def request_verification_token(user_pubkey):
+    """Send verification token to user's phone."""
+    user_info = get_internal_user_infos(user_pubkey)
+
+    if 'phone_number' not in user_info:
+        raise NotEnoughInfo('phone number does not provided')
+    if not get_test_result(user_pubkey, 'basic'):
+        raise NotEnoughInfo('user does not passed KYC')
+
+    if user_info['authy_id'] is not None:
+        authy_id = user_info['authy_id']
+    else:
+        parsed_phone_number = phonenumbers.parse(user_info['phone_number'])
+        authy_user = AUTHY_API.users.create(
+            'paket@mockemails.moc', parsed_phone_number.national_number, parsed_phone_number.country_code)
+        if not authy_user.ok():
+            raise authy.AuthyException(authy_user.errors())
+        authy_id = authy_user.id
+        set_internal_user_info(user_pubkey, authy_id=authy_id)
+
+    sms = AUTHY_API.users.request_sms(authy_id)
+    if not sms.ok():
+        raise authy.AuthyException(sms.errors())
+
+
+def check_verification_token(user_pubkey, verification_token):
+    """
+    Check verification token validity and create stellar account if it is not created yet.
+    """
+    authy_id = get_internal_user_infos(user_pubkey).get('authy_id', None)
+    if authy_id is None:
+        raise NotEnoughInfo(
+            "user does not provided correct phone number and can not be able to receive verification tokens")
+    verification = AUTHY_API.tokens.verify(authy_id, verification_token)
+
+    if not verification.ok():
+        raise InvalidToken('verification token invalid or expired')
+
+    with SQL_CONNECTION() as sql:
+        sql.execute("SELECT * FROM purchases WHERE user_pubkey = %s", (user_pubkey,))
+        purchases = sql.fetchall()
+    passed_kyc = get_test_result(user_pubkey, 'basic')
+    if passed_kyc and not purchases:
+        create_and_fund(user_pubkey)
 
 
 def create_user(pubkey, call_sign):
     """Create a new user."""
+    try:
+        get_user(pubkey=pubkey)
+    except UnknownUser:
+        pass
+    else:
+        raise UserAlreadyExists(
+            "user with provided pubkey ({}) already exists".format(pubkey))
+
+    try:
+        get_user(call_sign=call_sign)
+    except UnknownUser:
+        pass
+    else:
+        raise UserAlreadyExists(
+            "user with provided call_sign ({}) already exists".format(call_sign))
+
     with SQL_CONNECTION() as sql:
         sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (%s, %s)", (pubkey, call_sign))
 
@@ -105,7 +216,7 @@ def get_test_result(pubkey, test_name):
             return 0
 
 
-def get_user_infos(pubkey):
+def get_internal_user_infos(pubkey):
     """Get all user infos."""
     with SQL_CONNECTION() as sql:
         sql.execute(
@@ -118,13 +229,34 @@ def get_user_infos(pubkey):
             return {}
 
 
+def get_user_infos(pubkey):
+    """Get user infos, excluding sensitive data."""
+    user_infos = get_internal_user_infos(pubkey)
+    if 'authy_id' in user_infos:
+        del user_infos['authy_id']
+    return user_infos
+
+
 def set_internal_user_info(pubkey, **kwargs):
     """Add optional details in local user info."""
     # Verify user exists.
     get_user(pubkey)
 
-    user_details = get_user_infos(pubkey)
+    user_details = get_internal_user_infos(pubkey)
     if kwargs:
+        if 'phone_number' in kwargs:
+            # validate and fix (if possible) phone number
+            try:
+                phone_number = phonenumbers.parse(kwargs['phone_number'])
+                valid_number = phonenumbers.is_valid_number(phone_number)
+                possible_number = phonenumbers.is_possible_number(phone_number)
+                if not valid_number or not possible_number:
+                    raise InvalidPhoneNumber('Invalid phone number')
+                kwargs['phone_number'] = phonenumbers.format_number(
+                    phone_number, phonenumbers.PhoneNumberFormat.E164)
+            except phonenumbers.phonenumberutil.NumberParseException as exc:
+                raise InvalidPhoneNumber("Invalid phone number. {}".format(str(exc)))
+
         user_details.update(kwargs)
         user_details['pubkey'] = pubkey
         if 'timestamp' in user_details:
@@ -137,8 +269,6 @@ def set_internal_user_info(pubkey, **kwargs):
         # Run basic test as soon as (and every time) all basic details are filled.
         if all([user_details.get(key) for key in ['full_name', 'phone_number', 'address']]):
             update_test(pubkey, 'basic', csl_reader.CSLListChecker().basic_test(user_details['full_name']))
-
-    return user_details
 
 
 def get_monthly_allowance(pubkey):
@@ -176,6 +306,83 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
             VALUES (%s, %s, %s, %s, %s)""",
             (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency))
     return payment_pubkey
+
+
+def get_spent_euro(period):
+    """Get spent euro-cents amount for specified period of time."""
+    with SQL_CONNECTION() as sql:
+        sql.execute('''
+            SELECT CAST(SUM(euro_cents) AS SIGNED) euro_cents FROM fundings
+            WHERE timestamp > %s''', (period,))
+        try:
+            return sql.fetchall()[0][b'euro_cents'] or 0
+        except TypeError:
+            return 0
+
+
+def get_hourly_spent_euro():
+    """Get spent euro-cents amount for last hour."""
+    return get_spent_euro(3600)
+
+
+def get_daily_spent_euro():
+    """Get spent euro-cents amount for last 24 hours."""
+    return get_spent_euro(86400)
+
+
+def create_and_fund(user_pubkey):
+    """Create account and fund it with starting XLM and BUL amounts"""
+    try:
+        paket_stellar.get_bul_account(user_pubkey, accept_untrusted=True)
+    except paket_stellar.stellar_base.address.AccountNotExistError:
+        LOGGER.info("stellar account with pubkey %s does not exists and will be created", user_pubkey)
+    else:
+        LOGGER.info("stellar account with pubkey %s already exists", user_pubkey)
+        return
+
+    daily_spent_euro = get_daily_spent_euro()
+    if daily_spent_euro >= DAILY_FUND_LIMIT:
+        raise FundLimitReached('daily fund limit reached')
+
+    hourly_spent_euro = get_hourly_spent_euro()
+    if hourly_spent_euro >= HOURLY_FUND_LIMIT:
+        raise FundLimitReached('hourly fund limit reached')
+
+    starting_balance = util.conversion.stroops_to_units(XLM_STARTING_BALANCE)
+    funder_pubkey = paket_stellar.stellar_base.Keypair.from_seed(FUNDER_SEED).address().decode()
+    builder = paket_stellar.gen_builder(funder_pubkey)
+    builder.append_create_account_op(destination=user_pubkey, starting_balance=starting_balance)
+    envelope = builder.gen_te().xdr().decode()
+    paket_stellar.submit_transaction_envelope(envelope, seed=FUNDER_SEED)
+    euro_cents = currency_conversions.currency_to_euro_cents('XLM', XLM_STARTING_BALANCE)
+    with SQL_CONNECTION() as sql:
+        sql.execute("""
+            INSERT INTO fundings (user_pubkey, currency, currency_amount, euro_cents)
+            VALUES (%s, %s, %s, %s)""", (user_pubkey, 'XLM', XLM_STARTING_BALANCE, euro_cents))
+
+
+def fund(user_pubkey):
+    """Fund account with starting BUL amount."""
+    funder_pubkey = paket_stellar.stellar_base.Keypair.from_seed(FUNDER_SEED).address().decode()
+    prepare_fund_transaction = paket_stellar.prepare_send_buls(
+        funder_pubkey, user_pubkey, BUL_STARTING_BALANCE)
+    paket_stellar.submit_transaction_envelope(prepare_fund_transaction, FUNDER_SEED)
+    euro_cents = currency_conversions.currency_to_euro_cents('BUL', BUL_STARTING_BALANCE)
+    with SQL_CONNECTION() as sql:
+        sql.execute("""
+            INSERT INTO fundings (user_pubkey, currency, currency_amount, euro_cents)
+            VALUES (%s, %s, %s, %s)""", (user_pubkey, 'BUL', BUL_STARTING_BALANCE, euro_cents))
+
+
+def get_unfunded():
+    """Get new accounts that has been not funded yet."""
+    with SQL_CONNECTION() as sql:
+        sql.execute('''
+            SELECT pubkey, call_sign FROM users
+            WHERE pubkey NOT IN (SELECT user_pubkey FROM fundings WHERE currency = 'BUL') AND
+            (SELECT result FROM test_results WHERE pubkey = pubkey AND name = 'basic'
+            ORDER BY timestamp DESC LIMIT 1) = 1''')
+        return sql.fetchall()
 
 
 def get_purchases():
