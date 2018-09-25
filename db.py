@@ -14,8 +14,9 @@ import util.conversion
 import csl_reader
 import currency_conversions
 
-AUTHY_API_KEY = os.environ.get('PAKET_AUTHY_API_KEY')
-AUTHY_API = authy.api.AuthyApiClient(AUTHY_API_KEY)
+VERIFY_API_KEY = os.environ.get('PAKET_VERIFY_API_KEY')
+AUTHY_API = authy.api.AuthyApiClient(VERIFY_API_KEY)
+VERIFY_TOKEN_LENGTH = int(os.environ.get('PAKET_VERIFY_TOKEN_LENGTH', 4))
 LOGGER = logging.getLogger('pkt.funder.db')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
 FUNDER_SEED = os.environ['PAKET_FUNDER_SEED']
@@ -79,7 +80,6 @@ def init_db():
                 full_name VARCHAR(256),
                 phone_number VARCHAR(32),
                 address VARCHAR(1024),
-                authy_id varchar(56),
                 PRIMARY KEY (timestamp, pubkey),
                 FOREIGN KEY(pubkey) REFERENCES users(pubkey))''')
         LOGGER.debug('internal_user_infos table created')
@@ -124,31 +124,27 @@ def request_verification_token(user_pubkey):
     if not get_test_result(user_pubkey, 'basic'):
         raise NotEnoughInfo('user does not passed KYC')
 
-    if user_info['authy_id'] is not None:
-        authy_id = user_info['authy_id']
-    else:
-        parsed_phone_number = phonenumbers.parse(user_info['phone_number'])
-        authy_user = AUTHY_API.users.create(
-            'paket@mockemails.moc', parsed_phone_number.national_number, parsed_phone_number.country_code)
-        if not authy_user.ok():
-            raise authy.AuthyException(authy_user.errors())
-        authy_id = authy_user.id
-        set_internal_user_info(user_pubkey, authy_id=authy_id)
-
-    sms = AUTHY_API.users.request_sms(authy_id)
-    if not sms.ok():
-        raise authy.AuthyException(sms.errors())
+    parsed_phone_number = phonenumbers.parse(user_info['phone_number'])
+    request = AUTHY_API.phones.verification_start(
+        parsed_phone_number.national_number, parsed_phone_number.country_code, code_length=VERIFY_TOKEN_LENGTH)
+    if not request.ok():
+        raise authy.AuthyException(request.errors())
 
 
 def check_verification_token(user_pubkey, verification_token):
     """
     Check verification token validity and create stellar account if it is not created yet.
     """
-    authy_id = get_internal_user_infos(user_pubkey).get('authy_id', None)
-    if authy_id is None:
-        raise NotEnoughInfo(
-            "user does not provided correct phone number and can not be able to receive verification tokens")
-    verification = AUTHY_API.tokens.verify(authy_id, verification_token)
+    user_info = get_internal_user_infos(user_pubkey)
+
+    if 'phone_number' not in user_info:
+        raise NotEnoughInfo('phone number does not provided')
+    if not get_test_result(user_pubkey, 'basic'):
+        raise NotEnoughInfo('user does not passed KYC')
+
+    parsed_phone_number = phonenumbers.parse(user_info['phone_number'])
+    verification = AUTHY_API.phones.verification_check(
+        parsed_phone_number.national_number, parsed_phone_number.country_code, verification_token)
 
     if not verification.ok():
         raise InvalidToken('verification token invalid or expired')
@@ -232,8 +228,9 @@ def get_internal_user_infos(pubkey):
 def get_user_infos(pubkey):
     """Get user infos, excluding sensitive data."""
     user_infos = get_internal_user_infos(pubkey)
-    if 'authy_id' in user_infos:
-        del user_infos['authy_id']
+
+    # place excluding code there
+
     return user_infos
 
 
