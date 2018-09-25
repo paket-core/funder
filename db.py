@@ -16,7 +16,7 @@ import currency_conversions
 
 VERIFY_API_KEY = os.environ.get('PAKET_VERIFY_API_KEY')
 AUTHY_API = authy.api.AuthyApiClient(VERIFY_API_KEY)
-VERIFY_TOKEN_LENGTH = int(os.environ.get('PAKET_VERIFY_TOKEN_LENGTH', 4))
+VERIFY_CODE_LENGTH = int(os.environ.get('PAKET_VERIFY_CODE_LENGTH', 4))
 LOGGER = logging.getLogger('pkt.funder.db')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
 FUNDER_SEED = os.environ['PAKET_FUNDER_SEED']
@@ -45,8 +45,8 @@ class NotEnoughInfo(Exception):
     """User does not provided enough information about himself."""
 
 
-class InvalidToken(Exception):
-    """User sent invalid or expired verification token."""
+class InvalidVerificationCode(Exception):
+    """User sent invalid or expired verification code."""
 
 
 class InvalidPhoneNumber(Exception):
@@ -115,8 +115,8 @@ def init_db():
         LOGGER.debug('fundings table created')
 
 
-def request_verification_token(user_pubkey):
-    """Send verification token to user's phone."""
+def request_verification_code(user_pubkey):
+    """Send verification code to user's phone."""
     user_info = get_internal_user_infos(user_pubkey)
 
     if 'phone_number' not in user_info:
@@ -126,14 +126,14 @@ def request_verification_token(user_pubkey):
 
     parsed_phone_number = phonenumbers.parse(user_info['phone_number'])
     request = AUTHY_API.phones.verification_start(
-        parsed_phone_number.national_number, parsed_phone_number.country_code, code_length=VERIFY_TOKEN_LENGTH)
+        parsed_phone_number.national_number, parsed_phone_number.country_code, code_length=VERIFY_CODE_LENGTH)
     if not request.ok():
         raise authy.AuthyException(request.errors())
 
 
-def check_verification_token(user_pubkey, verification_token):
+def check_verification_code(user_pubkey, verification_code):
     """
-    Check verification token validity and create stellar account if it is not created yet.
+    Check verification code validity and create stellar account if it is not created yet.
     """
     user_info = get_internal_user_infos(user_pubkey)
 
@@ -144,10 +144,10 @@ def check_verification_token(user_pubkey, verification_token):
 
     parsed_phone_number = phonenumbers.parse(user_info['phone_number'])
     verification = AUTHY_API.phones.verification_check(
-        parsed_phone_number.national_number, parsed_phone_number.country_code, verification_token)
+        parsed_phone_number.national_number, parsed_phone_number.country_code, verification_code)
 
     if not verification.ok():
-        raise InvalidToken('verification token invalid or expired')
+        raise InvalidVerificationCode('verification code invalid or expired')
 
     with SQL_CONNECTION() as sql:
         sql.execute("SELECT * FROM purchases WHERE user_pubkey = %s", (user_pubkey,))
