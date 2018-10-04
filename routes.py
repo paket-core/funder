@@ -123,12 +123,12 @@ def verify_code_handler(user_pubkey, verification_token):
 @BLUEPRINT.route("/v{}/ratio".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.RATIO)
 @webserver.validation.call(['currency'])
-def ration_handler(currency):
+def ratio_handler(currency):
     """
     Get XLM/BUL price in EUR cents.
     """
-    return {'status': 200, 'ratio': db.currency_conversions.currency_to_euro_cents(
-        currency, 1 * 10 ** db.util.conversion.STELLAR_DECIMALS)}
+    return {'status': 200, 'ratio': db.util.currency_conversions.currency_to_euro_cents(
+        currency, 1 * 10 ** db.util.conversion.STELLAR_DECIMALS, db.BUL_STROOPS_FOR_EUR_CENT)}
 
 
 @BLUEPRINT.route("/v{}/debug/users".format(VERSION), methods=['GET'])

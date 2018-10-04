@@ -6,8 +6,8 @@ import requests
 
 import paket_stellar
 import util.logger
+import util.currency_conversions
 
-import currency_conversions
 import db
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
@@ -71,7 +71,8 @@ def check_purchases_addresses():
     for purchase in purchases:
         LOGGER.info("checking address %s", purchase['payment_pubkey'])
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-        euro_cents_balance = currency_conversions.currency_to_euro_cents(purchase['payment_currency'], balance)
+        euro_cents_balance = util.currency_conversions.currency_to_euro_cents(
+            purchase['payment_currency'], balance, db.BUL_STROOPS_FOR_EUR_CENT)
         if euro_cents_balance >= db.MINIMUM_PAYMENT:
             db.update_purchase(purchase['payment_pubkey'], 1)
 
@@ -81,14 +82,16 @@ def send_requested_currency():
     purchases = db.get_paid()
     for purchase in purchases:
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-        euro_cents_balance = currency_conversions.currency_to_euro_cents(purchase['payment_currency'], balance)
+        euro_cents_balance = util.currency_conversions.currency_to_euro_cents(
+            purchase['payment_currency'], balance, db.BUL_STROOPS_FOR_EUR_CENT)
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
         monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
         remaining_monthly_allowance = monthly_allowance - monthly_expanses
         euro_to_fund = min(euro_cents_balance, remaining_monthly_allowance)
         if euro_to_fund:
             if purchase['requested_currency'] == 'BUL':
-                fund_amount = currency_conversions.euro_cents_to_bul_stroops(euro_to_fund)
+                fund_amount = util.currency_conversions.euro_cents_to_bul_stroops(
+                    euro_to_fund, db.BUL_STROOPS_FOR_EUR_CENT)
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'])
                     if account['bul_balance'] + fund_amount <= account['bul_limit']:
@@ -104,7 +107,7 @@ def send_requested_currency():
                     LOGGER.error(str(exc))
                     db.update_purchase(purchase['payment_pubkey'], -1)
             else:
-                fund_amount = currency_conversions.euro_cents_to_xlm_stroops(euro_to_fund)
+                fund_amount = util.currency_conversions.euro_cents_to_xlm_stroops(euro_to_fund)
                 try:
                     paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
                     fund_account(purchase['user_pubkey'], fund_amount, 'XLM')
@@ -139,9 +142,14 @@ def fund_new_accounts():
                 'fund limit reached; %s accounts funded, %s accounts remaining',
                 funded_users_amount, len(unfunded_users) - funded_users_amount)
             break
-
-        db.fund(user['pubkey'])
-        LOGGER.info('user %s (%s) funded with %s BUL', user['pubkey'], user['call_sign'], db.BUL_STARTING_BALANCE)
+        # pylint:disable=broad-except
+        try:
+            db.fund(user['pubkey'])
+            LOGGER.info("user %s (%s) funded with %s BUL",
+                        user['pubkey'], user['call_sign'], db.BUL_STARTING_BALANCE)
+        except Exception as exc:
+            LOGGER.warning(str(exc))
+        # pylint:enable=broad-except
 
 
 if __name__ == '__main__':

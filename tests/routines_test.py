@@ -47,8 +47,8 @@ class RoutinesTest(unittest.TestCase):
             if number % 2 == 0:
                 LOGGER.info("creating account for address: %s", new_keypair.address())
                 routines.create_new_account(new_keypair.address(), 50000000)
-            db.set_internal_user_info(new_keypair.address(),
-                                      full_name='Full Name', phone_number='+4134976443', address='address')
+            db.set_internal_user_info(
+                new_keypair.address(), full_name='Full Name', phone_number='+380991128370', address='address')
             self.actual_keypairs[new_keypair.address().decode()] = new_keypair.seed().decode()
 
     def purchase(self, payment_address, amount, network):
