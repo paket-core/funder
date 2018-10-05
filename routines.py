@@ -6,7 +6,6 @@ import requests
 
 import paket_stellar
 import util.logger
-import util.currency_conversions
 
 import db
 
@@ -71,7 +70,7 @@ def check_purchases_addresses():
     for purchase in purchases:
         LOGGER.info("checking address %s", purchase['payment_pubkey'])
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-        euro_cents_balance = util.currency_conversions.currency_to_euro_cents(
+        euro_cents_balance = db.util.conversion.currency_to_euro_cents(
             purchase['payment_currency'], balance, db.BUL_STROOPS_FOR_EUR_CENT)
         if euro_cents_balance >= db.MINIMUM_PAYMENT:
             db.update_purchase(purchase['payment_pubkey'], 1)
@@ -82,7 +81,7 @@ def send_requested_currency():
     purchases = db.get_paid()
     for purchase in purchases:
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-        euro_cents_balance = util.currency_conversions.currency_to_euro_cents(
+        euro_cents_balance = db.util.conversion.currency_to_euro_cents(
             purchase['payment_currency'], balance, db.BUL_STROOPS_FOR_EUR_CENT)
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
         monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
@@ -90,7 +89,7 @@ def send_requested_currency():
         euro_to_fund = min(euro_cents_balance, remaining_monthly_allowance)
         if euro_to_fund:
             if purchase['requested_currency'] == 'BUL':
-                fund_amount = util.currency_conversions.euro_cents_to_bul_stroops(
+                fund_amount = db.util.conversion.euro_cents_to_bul_stroops(
                     euro_to_fund, db.BUL_STROOPS_FOR_EUR_CENT)
                 try:
                     account = paket_stellar.get_bul_account(purchase['user_pubkey'])
@@ -107,7 +106,7 @@ def send_requested_currency():
                     LOGGER.error(str(exc))
                     db.update_purchase(purchase['payment_pubkey'], -1)
             else:
-                fund_amount = util.currency_conversions.euro_cents_to_xlm_stroops(euro_to_fund)
+                fund_amount = db.util.conversion.euro_cents_to_xlm_stroops(euro_to_fund)
                 try:
                     paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
                     fund_account(purchase['user_pubkey'], fund_amount, 'XLM')

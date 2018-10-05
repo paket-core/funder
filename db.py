@@ -10,7 +10,6 @@ import phonenumbers
 import paket_stellar
 import util.db
 import util.conversion
-import util.currency_conversions
 
 import csl_reader
 
@@ -31,10 +30,8 @@ HOURLY_FUND_LIMIT = int(os.environ.get('PAKET_HOURLY_FUND_LIMIT'))
 DAILY_FUND_LIMIT = int(os.environ.get('PAKET_DAILY_FUND_LIMIT'))
 EUR_XLM_STARTING_BALANCE = int(os.environ.get('PAKET_EUR_XLM_STARTING_BALANCE'))
 EUR_BUL_STARTING_BALANCE = int(os.environ.get('PAKET_EUR_BUL_STARTING_BALANCE'))
-XLM_STARTING_BALANCE = util.currency_conversions.euro_cents_to_xlm_stroops(
-    EUR_XLM_STARTING_BALANCE)
-BUL_STARTING_BALANCE = util.currency_conversions.euro_cents_to_bul_stroops(
-    EUR_BUL_STARTING_BALANCE, BUL_STROOPS_FOR_EUR_CENT)
+XLM_STARTING_BALANCE = util.conversion.euro_cents_to_xlm_stroops(EUR_XLM_STARTING_BALANCE)
+BUL_STARTING_BALANCE = util.conversion.euro_cents_to_bul_stroops(EUR_BUL_STARTING_BALANCE, BUL_STROOPS_FOR_EUR_CENT)
 MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
 BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 5000))
 
@@ -357,8 +354,7 @@ def create_and_fund(user_pubkey):
     builder.append_create_account_op(destination=user_pubkey, starting_balance=starting_balance)
     envelope = builder.gen_te().xdr().decode()
     paket_stellar.submit_transaction_envelope(envelope, seed=FUNDER_SEED)
-    euro_cents = util.currency_conversions.currency_to_euro_cents(
-        'XLM', XLM_STARTING_BALANCE, BUL_STROOPS_FOR_EUR_CENT)
+    euro_cents = util.conversion.currency_to_euro_cents('XLM', XLM_STARTING_BALANCE, BUL_STROOPS_FOR_EUR_CENT)
     with SQL_CONNECTION() as sql:
         sql.execute("""
             INSERT INTO fundings (user_pubkey, currency, currency_amount, euro_cents)
@@ -371,8 +367,7 @@ def fund(user_pubkey):
     prepare_fund_transaction = paket_stellar.prepare_send_buls(
         funder_pubkey, user_pubkey, BUL_STARTING_BALANCE)
     paket_stellar.submit_transaction_envelope(prepare_fund_transaction, FUNDER_SEED)
-    euro_cents = util.currency_conversions.currency_to_euro_cents(
-        'BUL', BUL_STARTING_BALANCE, BUL_STROOPS_FOR_EUR_CENT)
+    euro_cents = util.conversion.currency_to_euro_cents('BUL', BUL_STARTING_BALANCE, BUL_STROOPS_FOR_EUR_CENT)
     with SQL_CONNECTION() as sql:
         sql.execute("""
             INSERT INTO fundings (user_pubkey, currency, currency_amount, euro_cents)
