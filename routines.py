@@ -143,7 +143,7 @@ def fund_new_accounts():
         funded_users_amount = index
         if funded_users_amount * db.BUL_STARTING_BALANCE >= remaining_funds:
             LOGGER.warning(
-                'fund limit reached; %s accounts funded, %s accounts remaining',
+                "fund limit reached; %s accounts funded, %s accounts remaining",
                 funded_users_amount, len(unfunded_users) - funded_users_amount)
             break
         # pylint:disable=broad-except
