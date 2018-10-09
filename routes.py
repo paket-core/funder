@@ -37,7 +37,7 @@ webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.authy.AuthyException] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.authy.AuthyFormatException] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.FundLimitReached] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.NotEnoughInfo] = 403
-webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.InvalidToken] = 403
+webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.InvalidVerificationCode] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.InvalidPhoneNumber] = 403
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UserAlreadyExists] = 403
@@ -98,25 +98,25 @@ def purchase_bul_handler(user_pubkey, euro_cents, payment_currency):
     return {'status': 201, 'payment_pubkey': db.get_payment_address(user_pubkey, euro_cents, payment_currency, 'BUL')}
 
 
-@BLUEPRINT.route("/v{}/request_verification_token".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.REQUEST_VERIFICATION_TOKEN)
+@BLUEPRINT.route("/v{}/request_verification_code".format(VERSION), methods=['POST'])
+@flasgger.swag_from(swagger_specs.REQUEST_VERIFICATION_CODE)
 @webserver.validation.call(require_auth=True)
-def request_verification_token_handler(user_pubkey):
+def request_verification_code_handler(user_pubkey):
     """
-    Send verification token to user.
+    Send verification code to user.
     """
-    db.request_verification_token(user_pubkey)
-    return {'status': 200, 'token_sent': True}
+    db.request_verification_code(user_pubkey)
+    return {'status': 200, 'code_sent': True}
 
 
-@BLUEPRINT.route("/v{}/verify_token".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.VERIFY_TOKEN)
-@webserver.validation.call(['verification_token'], require_auth=True)
-def verify_code_handler(user_pubkey, verification_token):
+@BLUEPRINT.route("/v{}/verify_code".format(VERSION), methods=['POST'])
+@flasgger.swag_from(swagger_specs.VERIFY_CODE)
+@webserver.validation.call(['verification_code'], require_auth=True)
+def verify_code_handler(user_pubkey, verification_code):
     """
-    Verify token received in sms.
+    Verify code received in sms.
     """
-    db.check_verification_token(user_pubkey, verification_token)
+    db.check_verification_code(user_pubkey, verification_code)
     return {'status': 200, 'verified': True}
 
 
