@@ -134,14 +134,18 @@ def fund_new_accounts():
 
     for index, user in enumerate(unfunded_users):
         funded_users_amount = index
-        if funded_users_amount * db.BUL_STARTING_BALANCE >= remaining_funds:
+        if funded_users_amount * db.EUR_BUL_STARTING_BALANCE >= remaining_funds:
             LOGGER.warning(
                 'fund limit reached; %s accounts funded, %s accounts remaining',
                 funded_users_amount, len(unfunded_users) - funded_users_amount)
             break
-
-        db.fund(user['pubkey'])
-        LOGGER.info('user %s (%s) funded with %s BUL', user['pubkey'], user['call_sign'], db.BUL_STARTING_BALANCE)
+        # pylint:disable=broad-except
+        try:
+            db.fund(user['pubkey'])
+            LOGGER.info('user %s (%s) funded with %s BUL', user['pubkey'], user['call_sign'], db.BUL_STARTING_BALANCE)
+        except Exception as exc:
+            LOGGER.warning(str(exc))
+        # pylint:enable=broad-except
 
 
 if __name__ == '__main__':
@@ -154,6 +158,7 @@ if __name__ == '__main__':
             send_requested_currency()
             sys.exit(0)
         if sys.argv[1] == 'fund':
+            fund_new_accounts()
             sys.exit(0)
     except IndexError:
         pass
