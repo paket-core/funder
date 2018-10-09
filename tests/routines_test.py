@@ -1,7 +1,5 @@
 """Tests for routines module"""
 import unittest
-import web3
-import eth_utils
 
 import paket_stellar
 import util.logger
@@ -27,13 +25,13 @@ class RoutinesTest(unittest.TestCase):
 
     def __init__(self, *args, **argv):
         super().__init__(*args, **argv)
-        # pylint: disable=no-value-for-parameter
-        # pylint thinks web3-py insists on some useless kwargs here.
-        self.eth_account = web3.Account.privateKeyToAccount(
-            '4cdd30299b14203ba2289d6706acbf5e093fce6e170a48f3621c28d38f4ed20d')
-        self.web3_api = web3.Web3(web3.HTTPProvider('https://ropsten.infura.io/9S2cUwgCk4jYKYG85rxJ'))
-        # pylint: enable=no-value-for-parameter
         self.actual_keypairs = {}
+        self.purchase_amount = db.MINIMUM_PAYMENT + 100
+        self.half_purchase_amount = db.MINIMUM_PAYMENT / 2
+        self.eth_full_payment = db.util.conversion.eth_to_wei(
+            str(self.purchase_amount / 100 / float(db.prices.eth_price())))
+        self.eth_half_payment = db.util.conversion.eth_to_wei(
+            str(self.half_purchase_amount / 100 / float(db.prices.eth_price())))
 
     def setUp(self):
         """Clear table and refill them with new data"""
@@ -47,51 +45,25 @@ class RoutinesTest(unittest.TestCase):
             if number % 2 == 0:
                 LOGGER.info("creating account for address: %s", new_keypair.address())
                 routines.create_new_account(new_keypair.address(), 50000000)
-            db.set_internal_user_info(new_keypair.address(),
-                                      full_name='Full Name', phone_number='+4134976443', address='address')
+            db.set_internal_user_info(
+                new_keypair.address(), full_name='Full Name', phone_number='+380991128370', address='address')
             self.actual_keypairs[new_keypair.address().decode()] = new_keypair.seed().decode()
-
-    def purchase(self, payment_address, amount, network):
-        """Send amount of coins to specified address"""
-        assert network == 'ETH', 'only ETH available for purchasing now'
-        # pylint: disable=no-member
-        # Pylint has a hard time recognizing web3 members.
-        LOGGER.info("purchasing %s with %s units", payment_address, amount)
-        nonce = self.web3_api.eth.getTransactionCount(self.eth_account.address)
-        transaction = {
-            'to': eth_utils.to_checksum_address(payment_address),
-            'gas': 90000,
-            'gasPrice': web3.Web3.toWei(5, 'gwei'),
-            'value': amount,
-            'nonce': nonce,
-            'chainId': 3
-        }
-        signed = self.eth_account.signTransaction(transaction)
-        transaction_hash = self.web3_api.eth.sendRawTransaction(signed.rawTransaction)
-        try:
-            self.web3_api.eth.waitForTransactionReceipt(transaction_hash, TIMEOUT)
-            return True
-        except web3.utils.threads.Timeout:
-            LOGGER.error(
-                "Transaction %s was not accepted by network, further tests will be irrelevant", transaction_hash)
-            return False
-        # pylint: enable=no-member
 
     def test_check_purchases_addresses(self):
         """Test for check_purchases_addresses routine"""
         users = db.get_users()
         full_paid_addresses = [
-            db.get_payment_address(users['callsign_0']['pubkey'], 500, 'ETH', 'XLM'),
-            db.get_payment_address(users['callsign_1']['pubkey'], 500, 'ETH', 'BUL')
+            db.get_payment_address(users['callsign_0']['pubkey'], self.purchase_amount, 'ETH', 'XLM'),
+            db.get_payment_address(users['callsign_1']['pubkey'], self.purchase_amount, 'ETH', 'BUL')
         ]
         half_paid_addresses = [
-            db.get_payment_address(users['callsign_2']['pubkey'], 500, 'ETH', 'BUL'),
-            db.get_payment_address(users['callsign_3']['pubkey'], 500, 'ETH', 'XLM')
+            db.get_payment_address(users['callsign_2']['pubkey'], self.purchase_amount, 'ETH', 'BUL'),
+            db.get_payment_address(users['callsign_3']['pubkey'], self.purchase_amount, 'ETH', 'XLM')
         ]
-        for address in full_paid_addresses:
-            self.purchase(address, 14 * 10 ** 15, 'ETH')
-        for address in half_paid_addresses:
-            self.purchase(address, 1 * 10 ** 15, 'ETH')
+
+        original_function = routines.get_balance
+        routines.get_balance = lambda address, _: \
+            self.eth_full_payment if address in full_paid_addresses else self.eth_half_payment
 
         routines.check_purchases_addresses()
         purchases = db.get_unpaid()
@@ -105,25 +77,27 @@ class RoutinesTest(unittest.TestCase):
                 self.assertEqual(purchase['paid'], 0,
                                  "purchase without full funded address %s"
                                  "has wrong paid status: %s" % (purchase['payment_pubkey'], purchase['paid']))
+        routines.get_balance = original_function
 
     def test_send_requested_currency(self):
         """Test for send_requested_currency"""
         users = db.get_users()
         successful_address = [
-            db.get_payment_address(users['callsign_0']['pubkey'], 500, 'ETH', 'XLM'),
-            db.get_payment_address(users['callsign_1']['pubkey'], 500, 'ETH', 'XLM'),
-            db.get_payment_address(users['callsign_2']['pubkey'], 500, 'ETH', 'BUL')
+            db.get_payment_address(users['callsign_0']['pubkey'], self.purchase_amount, 'ETH', 'XLM'),
+            db.get_payment_address(users['callsign_1']['pubkey'], self.purchase_amount, 'ETH', 'XLM'),
+            db.get_payment_address(users['callsign_2']['pubkey'], self.purchase_amount, 'ETH', 'BUL')
         ]
         failed_address = [
-            db.get_payment_address(users['callsign_3']['pubkey'], 500, 'ETH', 'BUL'),
-            db.get_payment_address(users['callsign_4']['pubkey'], 500, 'ETH', 'BUL'),
-            db.get_payment_address(users['callsign_5']['pubkey'], 500, 'ETH', 'BUL')
+            db.get_payment_address(users['callsign_3']['pubkey'], self.purchase_amount, 'ETH', 'BUL'),
+            db.get_payment_address(users['callsign_4']['pubkey'], self.purchase_amount, 'ETH', 'BUL'),
+            db.get_payment_address(users['callsign_5']['pubkey'], self.purchase_amount, 'ETH', 'BUL')
         ]
         routines.create_new_account(users['callsign_5']['pubkey'], 50000000)
         set_trust(users['callsign_5']['pubkey'], self.actual_keypairs[users['callsign_5']['pubkey']], 1000000)
         set_trust(users['callsign_2']['pubkey'], self.actual_keypairs[users['callsign_2']['pubkey']])
-        for address in successful_address + failed_address:
-            self.purchase(address, 14 * 10 ** 15, 'ETH')
+
+        original_function = routines.get_balance
+        routines.get_balance = lambda address, _: self.eth_full_payment
 
         routines.check_purchases_addresses()
         routines.send_requested_currency()
@@ -136,6 +110,7 @@ class RoutinesTest(unittest.TestCase):
             if purchase['payment_pubkey'] in failed_address:
                 self.assertEqual(purchase['paid'], -1, "purchase with address: {} has paid status: {} but expected: -1".
                                  format(purchase['payment_pubkey'], purchase['paid']))
+        routines.get_balance = original_function
 
 
 class BalanceTest(unittest.TestCase):
