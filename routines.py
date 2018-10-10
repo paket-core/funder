@@ -67,6 +67,12 @@ def create_new_account(user_pubkey, amount):
     paket_stellar.submit_transaction_envelope(prepared_transaction, FUNDER_SEED)
 
 
+def add_trust(user_pubkey, user_seed):
+    """Add BUL trust to account."""
+    prepared_transaction = paket_stellar.prepare_trust(user_pubkey)
+    paket_stellar.submit_transaction_envelope(prepared_transaction, seed=user_seed)
+
+
 def check_purchases_addresses():
     """Check purchases addresses and set paid status correspondingly to balance"""
     purchases = db.get_unpaid()
@@ -164,23 +170,29 @@ def check_users():
     Check if account exist in stellar and create them if not.
     Check if users exist in our system and create them if not.
     """
-    for user_seed in (TEST_LAUNCHER_SEED, TEST_COURIER_SEED, TEST_RECIPIENT_SEED):
+    for user_seed, call_sign in zip(
+            (TEST_LAUNCHER_SEED, TEST_COURIER_SEED, TEST_RECIPIENT_SEED),
+            ('test_launcher', 'test_courier', 'test_recipient')):
         user_keypair = paket_stellar.stellar_base.Keypair.from_seed(user_seed)
         user_pubkey = user_keypair.address().decode()
+        user_seed = user_keypair.seed().decode()
         try:
             paket_stellar.get_bul_account(user_pubkey)
         except paket_stellar.stellar_base.address.AccountNotExistError:
-            # create account
-            pass
+            LOGGER.info("creating account %s", user_pubkey)
+            create_new_account(user_pubkey, 50000000)
+            LOGGER.info("adding trust to %s", user_pubkey)
+            add_trust(user_pubkey, user_seed)
+            paket_stellar.fund_from_issuer(user_pubkey, 1000000000)
         except paket_stellar.TrustError:
-            # add trust
-            pass
+            LOGGER.info("adding trust to %s", user_pubkey)
+            add_trust(user_pubkey, user_seed)
+            paket_stellar.fund_from_issuer(user_pubkey, 1000000000)
 
         try:
-            db.get_user(user_pubkey)
-        except db.UnknownUser:
-            # create user
-            pass
+            db.create_user(user_pubkey, call_sign)
+        except db.UserAlreadyExists as exc:
+            LOGGER.info(str(exc))
 
 
 def simulation_routine():
@@ -190,8 +202,9 @@ def simulation_routine():
         return
 
     check_users()
-
-    # call routine for each user role
+    for routine in ():
+        if routine():
+            break
 
 
 if __name__ == '__main__':
