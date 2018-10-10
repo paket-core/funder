@@ -8,14 +8,12 @@ import paket_stellar
 import util.logger
 
 import db
+import simulation
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
 FUNDER_SEED = os.environ['PAKET_FUNDER_SEED']
 ETHERSCAN_API_KEY = os.environ['PAKET_ETHERSCAN_API_KEY']
-TEST_LAUNCHER_SEED = os.environ['PAKET_TEST_LAUNCHER_SEED']
-TEST_COURIER_SEED = os.environ['PAKET_TEST_COURIER_SEED']
-TEST_RECIPIENT_SEED = os.environ['PAKET_TEST_RECIPIENT_SEED']
 
 
 class BalanceError(Exception):
@@ -165,48 +163,6 @@ def fund_new_accounts():
         # pylint:enable=broad-except
 
 
-def check_users():
-    """
-    Check if account exist in stellar and create them if not.
-    Check if users exist in our system and create them if not.
-    """
-    for user_seed, call_sign in zip(
-            (TEST_LAUNCHER_SEED, TEST_COURIER_SEED, TEST_RECIPIENT_SEED),
-            ('test_launcher', 'test_courier', 'test_recipient')):
-        user_keypair = paket_stellar.stellar_base.Keypair.from_seed(user_seed)
-        user_pubkey = user_keypair.address().decode()
-        user_seed = user_keypair.seed().decode()
-        try:
-            paket_stellar.get_bul_account(user_pubkey)
-        except paket_stellar.stellar_base.address.AccountNotExistError:
-            LOGGER.info("creating account %s", user_pubkey)
-            create_new_account(user_pubkey, 50000000)
-            LOGGER.info("adding trust to %s", user_pubkey)
-            add_trust(user_pubkey, user_seed)
-            paket_stellar.fund_from_issuer(user_pubkey, 1000000000)
-        except paket_stellar.TrustError:
-            LOGGER.info("adding trust to %s", user_pubkey)
-            add_trust(user_pubkey, user_seed)
-            paket_stellar.fund_from_issuer(user_pubkey, 1000000000)
-
-        try:
-            db.create_user(user_pubkey, call_sign)
-        except db.UserAlreadyExists as exc:
-            LOGGER.info(str(exc))
-
-
-def simulation_routine():
-    """Simulates user activity - for debug only."""
-    if not DEBUG:
-        LOGGER.error('simulation user activity allowed only in debug mode')
-        return
-
-    check_users()
-    for routine in ():
-        if routine():
-            break
-
-
 if __name__ == '__main__':
     util.logger.setup()
     try:
@@ -220,7 +176,7 @@ if __name__ == '__main__':
             fund_new_accounts()
             sys.exit(0)
         if sys.argv[1] == 'simulate':
-            simulation_routine()
+            simulation.simulation_routine()
     except IndexError:
         pass
     print(' Usage: python routines.py [monitor|pay|fund|simulate]')
