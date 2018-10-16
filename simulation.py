@@ -27,7 +27,7 @@ BRIDGE_URL = os.environ.get('PAKET_BRIDGE_URL')
 ESCROW_BALANCE = 40000000
 PAYMENT = 5000000
 COLLATERAL = 10000000
-LOCATIONS = {
+PLACES = {
     'from': [
         ('49.9944226,36.1646005', 'Nyzhnya Hyivska St 142 KharkivKharkivska oblast'),
         ('52.3618169,16.9324558', 'Nad Starynka 18 61-361 Poznan Poland'),
@@ -142,8 +142,8 @@ def launch_new_package(package_number):
     escrow_keypair = paket_stellar.stellar_base.Keypair.random()
     escrow_pubkey = escrow_keypair.address().decode()
     escrow_seed = escrow_keypair.seed().decode()
-    from_ = random.choice(LOCATIONS['from'])
-    to = random.choice(LOCATIONS['to'])
+    from_place = random.choice(PLACES['from'])
+    to_place = random.choice(PLACES['to'])
     package = {
         'escrow_pubkey': escrow_pubkey,
         'recipient_pubkey': TEST_RECIPIENT_PUBKEY,
@@ -153,17 +153,17 @@ def launch_new_package(package_number):
         'collateral_buls': COLLATERAL,
         'deadline_timestamp': time.time() + 60 * 60 * 24 * 2,
         'description': "Test package number {}".format(package_number),
-        'from_location': from_[0],
-        'to_location': to[0],
-        'from_address': from_[1],
-        'to_address': to[1],
-        'event_location': from_[0]}
+        'from_location': from_place[0],
+        'to_location': to_place[0],
+        'from_address': from_place[1],
+        'to_address': to_place[1],
+        'event_location': from_place[0]}
     create_package(TEST_LAUNCHER_PUBKEY, **package)
     event = {
         'event_type': 'escrow seed added',
-        'location': from_[0],
+        'location': from_place[0],
         'escrow_pubkey': escrow_pubkey,
-        'kwargs': '{"escrow_seed": {}}'.format(escrow_seed)}
+        'kwargs': '{{"escrow_seed": {}}}'.format(escrow_seed)}
     add_event(TEST_LAUNCHER_PUBKEY, **event)
 
 
@@ -206,9 +206,6 @@ def launcher_action():
 
     if not packages or all((package['status'] == 'delivered' for package in packages)):
         launch_new_package(len(packages) + 1)
-        return True
-
-    return False
 
 
 def courier_action():
@@ -229,15 +226,13 @@ def courier_action():
         elif len(location_changed_events) < 6:
             location = in_transit_package['to_location']
         else:
-            return False
+            return
         changed_location(TEST_COURIER_PUBKEY, escrow_pubkey=in_transit_package['escrow_pubkey'], location=location)
 
     waiting_pickup_package = next((package for package in packages if package['status'] == 'waiting pickup'))
     if waiting_pickup_package is not None:
         take_package_from_launcher(waiting_pickup_package)
-        return True
-
-    return False
+        return
 
 
 def recipient_action():
@@ -252,24 +247,24 @@ def recipient_action():
     if in_transit_package is not None:
         location_events = [event for event in in_transit_package['events']
                            if event['event_type'] == 'location changed']
-        if len(location_events) == 0:
+        if not location_events:
             return
         if location_events[-1]['location'] == in_transit_package['to_location']:
             accept_package(
                 TEST_RECIPIENT_PUBKEY, escrow_pubkey=in_transit_package['escrow_pubkey'],
                 location=in_transit_package['to_location'])
-            return True
-
-    return False
 
 
-def simulation_routine():
+def simulation_routine(user):
     """Simulates user activity - for debug only."""
+    assert user in ('launcher', 'courier', 'recipient'), 'allowed users are: launcher, courier, recipient'
     if not DEBUG:
         LOGGER.error('simulation user activity allowed only in debug mode')
         return
 
-    check_users()
-    for action in (launcher_action, courier_action, recipient_action):
-        if action():
-            break
+    if user == 'launcher':
+        launcher_action()
+    elif user == 'courier':
+        courier_action()
+    elif user == 'recipient':
+        recipient_action()
