@@ -108,7 +108,7 @@ def add_trust(user_pubkey, user_seed):
 
 def check_users():
     """
-    Check if account exist in stellar and create them if not.
+    Check if accounts exist in stellar and create them if not.
     Check if users exist in our system and create them if not.
     """
     for user_seed, call_sign in zip(
@@ -240,10 +240,11 @@ def recipient_action():
 
     in_transit_package = next((package for package in packages if package['status'] == 'in transit'))
     if in_transit_package is not None:
-        current_location = [event for event in in_transit_package['events']
-                            if event['event_type'] == 'location changed'][-1]
-        distance = util.distance.haversine(current_location, in_transit_package['to_location'])
-        if distance < 2:
+        location_events = [event for event in in_transit_package['events']
+                           if event['event_type'] == 'location changed']
+        if len(location_events) == 0:
+            return
+        if location_events[-1]['location'] == in_transit_package['to_location']:
             accept_package(
                 TEST_RECIPIENT_PUBKEY, escrow_pubkey=in_transit_package['escrow_pubkey'],
                 location=in_transit_package['to_location'])
