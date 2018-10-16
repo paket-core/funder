@@ -47,6 +47,11 @@ class SimulationError(Exception):
     """Can't perform actions during simulation."""
 
 
+def get_random_coordinates():
+    """Get random GPS coordinates."""
+    return "{},{}".format(str(random.randint(-90, 90)), str(random.randint(-180, 180)))
+
+
 def create_new_account(source_account_seed, user_pubkey, amount):
     """Create new Stellar account and send specified amount of XLM to it."""
     source_keypair = paket_stellar.stellar_base.Keypair.from_seed(source_account_seed)
@@ -158,7 +163,17 @@ def courier_action():
     in_transit_package = next((package for package in packages if package['status'] == 'in transit'))
     if in_transit_package is not None:
         # TODO: send `location changed` event
-        return False
+        location_changed_events = [event for event in in_transit_package['events']
+                                   if event['event_type' == 'location changed']]
+        if len(location_changed_events) < 5:
+            location = get_random_coordinates()
+        elif len(location_changed_events) < 6:
+            location = in_transit_package['to_location']
+        else:
+            return False
+        call(
+            ROUTER_URL, 'changed_location', TEST_COURIER_PUBKEY,
+            escrow_pubkey=in_transit_package['escrow_pubkey'], location=location)
 
     waiting_pickup_package = next((package for package in packages if package['status'] == 'waiting pickup'))
     if waiting_pickup_package is not None:
