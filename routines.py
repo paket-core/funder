@@ -168,15 +168,16 @@ if __name__ == '__main__':
     try:
         if sys.argv[1] == 'monitor':
             check_purchases_addresses()
-            sys.exit(0)
-        if sys.argv[1] == 'pay':
+        elif sys.argv[1] == 'pay':
             send_requested_currency()
-            sys.exit(0)
-        if sys.argv[1] == 'fund':
+        elif sys.argv[1] == 'fund':
             fund_new_accounts()
-            sys.exit(0)
-        if sys.argv[1] == 'simulate':
-            simulation.simulation_routine()
+        elif sys.argv[1] == 'simulate launcher':
+            simulation.simulation_routine('launcher')
+        elif sys.argv[1] == 'simulate courier':
+            simulation.simulation_routine('courier')
+        elif sys.argv[1] == 'simulate recipient':
+            simulation.simulation_routine('recipient')
     except IndexError:
         pass
-    print(' Usage: python routines.py [monitor|pay|fund|simulate]')
+    print(' Usage: python routines.py [monitor|pay|fund|simulate launcher|simulate courier|simulate recipient]')
