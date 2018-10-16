@@ -47,6 +47,46 @@ class SimulationError(Exception):
     """Can't perform actions during simulation."""
 
 
+def call(api_url, path, user_pubkey=None, **kwargs):
+    """Post data to API server."""
+    LOGGER.info("calling %s", path)
+    headers = {'Pubkey': user_pubkey} if user_pubkey is not None else None
+    response = requests.post("{}/{}".format(api_url, path), headers=headers, data=kwargs).json()
+    if response['status'] != 200:
+        raise SimulationError(response['error'])
+    return response
+
+
+def create_package(pubkey, **kwargs):
+    """Create package."""
+    return call(ROUTER_URL, 'create_package', pubkey, **kwargs)
+
+
+def my_packages(pubkey):
+    """Get user packages."""
+    return call(ROUTER_URL, 'my_packages', pubkey)
+
+
+def add_event(pubkey, route='add_event', **kwargs):
+    """Add event."""
+    return call(ROUTER_URL, route, pubkey, **kwargs)
+
+
+def changed_location(pubkey, **kwargs):
+    """Add `changed location` event."""
+    return add_event(pubkey, route='changed_location', **kwargs)
+
+
+def confirm_couriering(pubkey, **kwargs):
+    """Add `confirm couriering` event."""
+    return add_event(pubkey, route='confirm_couriering', **kwargs)
+
+
+def accept_package(pubkey, **kwargs):
+    """Add `accept_package` event."""
+    return add_event(pubkey, route='accept_package', **kwargs)
+
+
 def get_random_coordinates():
     """Get random GPS coordinates."""
     return "{},{}".format(str(random.randint(-90, 90)), str(random.randint(-180, 180)))
@@ -64,16 +104,6 @@ def add_trust(user_pubkey, user_seed):
     """Add BUL trust to account."""
     prepared_transaction = paket_stellar.prepare_trust(user_pubkey)
     paket_stellar.submit_transaction_envelope(prepared_transaction, seed=user_seed)
-
-
-def call(api_url, path, user_pubkey=None, **kwargs):
-    """Post data to API server."""
-    LOGGER.info("calling %s", path)
-    headers = {'Pubkey': user_pubkey} if user_pubkey is not None else None
-    response = requests.post("{}/{}".format(api_url, path), headers=headers, data=kwargs).json()
-    if response['status'] != 200:
-        raise SimulationError(response['error'])
-    return response
 
 
 def check_users():
@@ -127,13 +157,13 @@ def launch_new_package(package_number):
         'from_address': from_[1],
         'to_address': to[1],
         'event_location': from_[0]}
-    call(ROUTER_URL, 'create_package', TEST_LAUNCHER_PUBKEY, **package)
+    create_package(TEST_LAUNCHER_PUBKEY, **package)
     event = {
         'event_type': 'escrow seed added',
         'location': from_[0],
         'escrow_pubkey': escrow_pubkey,
         'kwargs': '{"escrow_seed": {}}'.format(escrow_seed)}
-    call(ROUTER_URL, 'add_event', TEST_LAUNCHER_PUBKEY, **event)
+    add_event(TEST_LAUNCHER_PUBKEY, **event)
 
 
 def launcher_action():
@@ -141,7 +171,7 @@ def launcher_action():
     Check if launcher has packages to deliver. If no - launch new package.
     :return main_action_performed: True if main user action - launching package - has been performed.
     """
-    response = call(ROUTER_URL, 'my_packages', TEST_LAUNCHER_PUBKEY)
+    response = my_packages(TEST_LAUNCHER_PUBKEY)
     packages = response['packages']
 
     if not packages or all((package['status'] == 'delivered' for package in packages)):
@@ -157,7 +187,7 @@ def courier_action():
     Send `changed location` event if courier has active package.
     :return main_action_performed: True if main user action - accepting package - has been performed.
     """
-    response = call(ROUTER_URL, 'my_packages', TEST_COURIER_PUBKEY)
+    response = my_packages(TEST_COURIER_PUBKEY)
     packages = response['packages']
 
     in_transit_package = next((package for package in packages if package['status'] == 'in transit'))
@@ -171,9 +201,7 @@ def courier_action():
             location = in_transit_package['to_location']
         else:
             return False
-        call(
-            ROUTER_URL, 'changed_location', TEST_COURIER_PUBKEY,
-            escrow_pubkey=in_transit_package['escrow_pubkey'], location=location)
+        changed_location(TEST_COURIER_PUBKEY, escrow_pubkey=in_transit_package['escrow_pubkey'], location=location)
 
     waiting_pickup_package = next((package for package in packages if package['status'] == 'waiting pickup'))
     if waiting_pickup_package is not None:
@@ -183,9 +211,8 @@ def courier_action():
         if seed_event is None:
             raise SimulationError("package {} is not simulation pacakge".format(escrow_pubkey))
         escrow_seed = json.loads(seed_event['kwargs'])['escrow_seed']
-        call(
-            ROUTER_URL, 'confirm_couriering', TEST_COURIER_PUBKEY,
-            escrow_pubkey=escrow_pubkey, location=waiting_pickup_package['from_location'])
+        confirm_couriering(
+            TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=waiting_pickup_package['from_location'])
         create_new_account(TEST_LAUNCHER_SEED, escrow_pubkey, 50000000)
         add_trust(escrow_pubkey, escrow_seed)
         escrow = paket_stellar.prepare_escrow(
@@ -196,9 +223,8 @@ def courier_action():
         paket_stellar.submit_transaction_envelope(send_bul_transaction, TEST_LAUNCHER_SEED)
         send_bul_transaction = paket_stellar.prepare_send_buls(TEST_COURIER_PUBKEY, escrow_pubkey, COLLATERAL)
         paket_stellar.submit_transaction_envelope(send_bul_transaction, TEST_COURIER_SEED)
-        call(
-            ROUTER_URL, 'accept_package', TEST_COURIER_PUBKEY,
-            escrow_pubkey=escrow_pubkey, location=in_transit_package['from_location'])
+        accept_package(
+            TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=in_transit_package['from_location'])
         return True
 
     return False
@@ -209,7 +235,7 @@ def recipient_action():
     Accept package if it near by recipient location.
     :return main_action_performed: True if main user action - accepting package - has been performed.
     """
-    response = call(ROUTER_URL, 'my_packages', TEST_RECIPIENT_PUBKEY)
+    response = my_packages(TEST_RECIPIENT_PUBKEY)
     packages = response['packages']
 
     in_transit_package = next((package for package in packages if package['status'] == 'in transit'))
@@ -218,9 +244,9 @@ def recipient_action():
                             if event['event_type'] == 'location changed'][-1]
         distance = util.distance.haversine(current_location, in_transit_package['to_location'])
         if distance < 2:
-            call(
-                ROUTER_URL, 'accept_package', TEST_RECIPIENT_PUBKEY,
-                escrow_pubkey=in_transit_package['escrow_pubkey'], location=in_transit_package['to_location'])
+            accept_package(
+                TEST_RECIPIENT_PUBKEY, escrow_pubkey=in_transit_package['escrow_pubkey'],
+                location=in_transit_package['to_location'])
             return True
 
     return False
