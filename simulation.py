@@ -24,6 +24,7 @@ XLM_START_BALANCE = os.environ.get('PAKET_SIMULATION_XLM_START_BALANCE')
 BUL_START_BALANCE = os.environ.get('PAKET_SIMULATION_BUL_START_BALANCE')
 ROUTER_URL = os.environ.get('PAKET_ROUTER_URL')
 BRIDGE_URL = os.environ.get('PAKET_BRIDGE_URL')
+ESCROW_BALANCE = 40000000
 PAYMENT = 5000000
 COLLATERAL = 10000000
 LOCATIONS = {
@@ -166,6 +167,35 @@ def launch_new_package(package_number):
     add_event(TEST_LAUNCHER_PUBKEY, **event)
 
 
+def take_package_from_launcher(package):
+    """
+    Confirm couriering, create new escrow account in stellar, add trust to it,
+    prepare transactions, send set_opts transaction, fund escrow account with payment and collateral,
+    accept package by courier.
+    :return:
+    """
+    escrow_pubkey = package['escrow_pubkey']
+    confirm_couriering(
+        TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=package['from_location'])
+    seed_event = next((event for event in package['events']
+                       if event['event_type'] == 'escrow seed added'))
+    if seed_event is None:
+        raise SimulationError("package {} is not simulation pacakge".format(escrow_pubkey))
+    escrow_seed = json.loads(seed_event['kwargs'])['escrow_seed']
+    create_new_account(TEST_LAUNCHER_SEED, escrow_pubkey, ESCROW_BALANCE)
+    add_trust(escrow_pubkey, escrow_seed)
+    escrow = paket_stellar.prepare_escrow(
+        escrow_pubkey, TEST_LAUNCHER_PUBKEY, TEST_COURIER_PUBKEY,
+        TEST_RECIPIENT_PUBKEY, PAYMENT, COLLATERAL, package['deadline'])
+    paket_stellar.submit_transaction_envelope(escrow['set_options_transaction'], escrow_seed)
+    send_bul_transaction = paket_stellar.prepare_send_buls(TEST_LAUNCHER_PUBKEY, escrow_pubkey, PAYMENT)
+    paket_stellar.submit_transaction_envelope(send_bul_transaction, TEST_LAUNCHER_SEED)
+    send_bul_transaction = paket_stellar.prepare_send_buls(TEST_COURIER_PUBKEY, escrow_pubkey, COLLATERAL)
+    paket_stellar.submit_transaction_envelope(send_bul_transaction, TEST_COURIER_SEED)
+    accept_package(
+        TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=package['from_location'])
+
+
 def launcher_action():
     """
     Check if launcher has packages to deliver. If no - launch new package.
@@ -192,7 +222,6 @@ def courier_action():
 
     in_transit_package = next((package for package in packages if package['status'] == 'in transit'))
     if in_transit_package is not None:
-        # TODO: send `location changed` event
         location_changed_events = [event for event in in_transit_package['events']
                                    if event['event_type' == 'location changed']]
         if len(location_changed_events) < 5:
@@ -205,26 +234,7 @@ def courier_action():
 
     waiting_pickup_package = next((package for package in packages if package['status'] == 'waiting pickup'))
     if waiting_pickup_package is not None:
-        escrow_pubkey = waiting_pickup_package['escrow_pubkey']
-        seed_event = next((event for event in waiting_pickup_package['events']
-                           if event['event_type'] == 'escrow seed added'))
-        if seed_event is None:
-            raise SimulationError("package {} is not simulation pacakge".format(escrow_pubkey))
-        escrow_seed = json.loads(seed_event['kwargs'])['escrow_seed']
-        confirm_couriering(
-            TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=waiting_pickup_package['from_location'])
-        create_new_account(TEST_LAUNCHER_SEED, escrow_pubkey, 50000000)
-        add_trust(escrow_pubkey, escrow_seed)
-        escrow = paket_stellar.prepare_escrow(
-            escrow_pubkey, TEST_LAUNCHER_PUBKEY, TEST_COURIER_PUBKEY,
-            TEST_RECIPIENT_PUBKEY, PAYMENT, COLLATERAL, waiting_pickup_package['deadline'])
-        paket_stellar.submit_transaction_envelope(escrow['set_options_transaction'], escrow_seed)
-        send_bul_transaction = paket_stellar.prepare_send_buls(TEST_LAUNCHER_PUBKEY, escrow_pubkey, PAYMENT)
-        paket_stellar.submit_transaction_envelope(send_bul_transaction, TEST_LAUNCHER_SEED)
-        send_bul_transaction = paket_stellar.prepare_send_buls(TEST_COURIER_PUBKEY, escrow_pubkey, COLLATERAL)
-        paket_stellar.submit_transaction_envelope(send_bul_transaction, TEST_COURIER_SEED)
-        accept_package(
-            TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=in_transit_package['from_location'])
+        take_package_from_launcher(waiting_pickup_package)
         return True
 
     return False
