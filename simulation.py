@@ -73,17 +73,22 @@ def add_event(pubkey, route='add_event', **kwargs):
     return call(ROUTER_URL, route, pubkey, **kwargs)
 
 
-def changed_location(pubkey, **kwargs):
+def assign_xdrs_event(pubkey, **kwargs):
+    """Add `assign event` to package."""
+    return add_event(pubkey, route='assign_xdrs', **kwargs)
+
+
+def changed_location_event(pubkey, **kwargs):
     """Add `changed location` event."""
     return add_event(pubkey, route='changed_location', **kwargs)
 
 
-def confirm_couriering(pubkey, **kwargs):
+def confirm_couriering_event(pubkey, **kwargs):
     """Add `confirm couriering` event."""
     return add_event(pubkey, route='confirm_couriering', **kwargs)
 
 
-def accept_package(pubkey, **kwargs):
+def accept_package_event(pubkey, **kwargs):
     """Add `accept_package` event."""
     return add_event(pubkey, route='accept_package', **kwargs)
 
@@ -137,6 +142,18 @@ def check_users():
             LOGGER.info(str(exc))
 
 
+def accept_package_by_recipient(package):
+    """Accept package by recipient."""
+    accept_package_event(
+        TEST_RECIPIENT_PUBKEY, escrow_pubkey=package['escrow_pubkey'], location=package['to_location'])
+    xdr_event = next((event for event in package['events'] if event['event_type'] == 'escrow XDRs assigned'))
+    if xdr_event is None:
+        SimulationError("can't accept package without XDRs transactions")
+    xdrs = json.loads(xdr_event['kwargs'])['escrow_xdrs']
+    paket_stellar.submit_transaction_envelope(xdrs['payment_transaction'], TEST_RECIPIENT_SEED)
+    paket_stellar.submit_transaction_envelope(xdrs['merge_transaction'], TEST_LAUNCHER_SEED)
+
+
 def launch_new_package(package_number):
     """Launch new package."""
     escrow_keypair = paket_stellar.stellar_base.Keypair.random()
@@ -175,7 +192,7 @@ def take_package_from_launcher(package):
     :return:
     """
     escrow_pubkey = package['escrow_pubkey']
-    confirm_couriering(
+    confirm_couriering_event(
         TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=package['from_location'])
     seed_event = next((event for event in package['events']
                        if event['event_type'] == 'escrow seed added'))
@@ -187,12 +204,13 @@ def take_package_from_launcher(package):
     escrow = paket_stellar.prepare_escrow(
         escrow_pubkey, TEST_LAUNCHER_PUBKEY, TEST_COURIER_PUBKEY,
         TEST_RECIPIENT_PUBKEY, PAYMENT, COLLATERAL, package['deadline'])
+    assign_xdrs_event(TEST_LAUNCHER_PUBKEY, kwargs=json.dumps(escrow))
     paket_stellar.submit_transaction_envelope(escrow['set_options_transaction'], escrow_seed)
     send_bul_transaction = paket_stellar.prepare_send_buls(TEST_LAUNCHER_PUBKEY, escrow_pubkey, PAYMENT)
     paket_stellar.submit_transaction_envelope(send_bul_transaction, TEST_LAUNCHER_SEED)
     send_bul_transaction = paket_stellar.prepare_send_buls(TEST_COURIER_PUBKEY, escrow_pubkey, COLLATERAL)
     paket_stellar.submit_transaction_envelope(send_bul_transaction, TEST_COURIER_SEED)
-    accept_package(
+    accept_package_event(
         TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=package['from_location'])
 
 
@@ -227,7 +245,8 @@ def courier_action():
             location = in_transit_package['to_location']
         else:
             return
-        changed_location(TEST_COURIER_PUBKEY, escrow_pubkey=in_transit_package['escrow_pubkey'], location=location)
+        changed_location_event(
+            TEST_COURIER_PUBKEY, escrow_pubkey=in_transit_package['escrow_pubkey'], location=location)
 
     waiting_pickup_package = next((package for package in packages if package['status'] == 'waiting pickup'))
     if waiting_pickup_package is not None:
@@ -250,9 +269,7 @@ def recipient_action():
         if not location_events:
             return
         if location_events[-1]['location'] == in_transit_package['to_location']:
-            accept_package(
-                TEST_RECIPIENT_PUBKEY, escrow_pubkey=in_transit_package['escrow_pubkey'],
-                location=in_transit_package['to_location'])
+            accept_package_by_recipient(in_transit_package)
 
 
 def simulation_routine(user):
