@@ -77,6 +77,12 @@ GET_USER = {
         '200': {'description': 'user details'},
         '404': {'description': 'user not found'}}}
 
+CALLSIGNS = {
+    'parameters': [
+        {'name': 'call_sign_prefix', 'in': 'formData', 'required': False, 'type': 'string'}],
+    'responses': {
+        '200': {'description': 'registered call_signs'}}}
+
 USER_INFOS = {
     'parameters': [
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},

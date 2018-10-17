@@ -191,6 +191,16 @@ def get_user(pubkey=None, call_sign=None):
             raise UnknownUser("user with {} {} does not exists".format(*condition))
 
 
+def get_callsings(call_sign_prefix=None):
+    """Get registered call signs which starts with specified string."""
+    with SQL_CONNECTION() as sql:
+        if call_sign_prefix is not None and call_sign_prefix:
+            sql.execute("SELECT * FROM users WHERE call_sign LIKE %s", (call_sign_prefix + '%',))
+        else:
+            sql.execute('SELECT * FROM users')
+        return sql.fetchall()
+
+
 def update_test(pubkey, test_name, result=None):
     """Update a test for a user."""
     with SQL_CONNECTION() as sql:
