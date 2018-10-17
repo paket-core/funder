@@ -145,12 +145,12 @@ def accept_package_by_recipient(package):
     """Accept package by recipient."""
     accept_package_event(
         TEST_RECIPIENT_PUBKEY, escrow_pubkey=package['escrow_pubkey'], location=package['to_location'])
-    xdr_event = next((event for event in package['events'] if event['event_type'] == 'escrow XDRs assigned'))
+    xdr_event = next((event for event in package['events'] if event['event_type'] == 'escrow XDRs assigned'), None)
     if xdr_event is None:
         SimulationError("can't accept package without XDRs transactions")
     xdrs = json.loads(xdr_event['kwargs'])['escrow_xdrs']
     paket_stellar.submit_transaction_envelope(xdrs['payment_transaction'], TEST_RECIPIENT_SEED)
-    paket_stellar.submit_transaction_envelope(xdrs['merge_transaction'], TEST_LAUNCHER_SEED)
+    paket_stellar.submit_transaction_envelope(xdrs['merge_transaction'])
 
 
 def launch_new_package(package_number):
@@ -179,7 +179,7 @@ def launch_new_package(package_number):
         'event_type': 'escrow seed added',
         'location': from_place[0],
         'escrow_pubkey': escrow_pubkey,
-        'kwargs': '{{"escrow_seed": {}}}'.format(escrow_seed)}
+        'kwargs': '{{"escrow_seed": "{}"}}'.format(escrow_seed)}
     add_event(TEST_LAUNCHER_PUBKEY, **event)
 
 
@@ -194,7 +194,7 @@ def take_package_from_launcher(package):
     confirm_couriering_event(
         TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=package['from_location'])
     seed_event = next((event for event in package['events']
-                       if event['event_type'] == 'escrow seed added'))
+                       if event['event_type'] == 'escrow seed added'), None)
     if seed_event is None:
         raise SimulationError("package {} is not simulation pacakge".format(escrow_pubkey))
     escrow_seed = json.loads(seed_event['kwargs'])['escrow_seed']
@@ -203,7 +203,8 @@ def take_package_from_launcher(package):
     escrow = paket_stellar.prepare_escrow(
         escrow_pubkey, TEST_LAUNCHER_PUBKEY, TEST_COURIER_PUBKEY,
         TEST_RECIPIENT_PUBKEY, PAYMENT, COLLATERAL, package['deadline'])
-    assign_xdrs_event(TEST_LAUNCHER_PUBKEY, kwargs=json.dumps(escrow))
+    assign_xdrs_event(TEST_LAUNCHER_PUBKEY, escrow_pubkey=escrow_pubkey,
+                      location=package['from_location'], kwargs=json.dumps(dict(escrow_xdrs=escrow)))
     paket_stellar.submit_transaction_envelope(escrow['set_options_transaction'], escrow_seed)
     send_bul_transaction = paket_stellar.prepare_send_buls(TEST_LAUNCHER_PUBKEY, escrow_pubkey, PAYMENT)
     paket_stellar.submit_transaction_envelope(send_bul_transaction, TEST_LAUNCHER_SEED)
@@ -231,13 +232,14 @@ def courier_action():
     Send `changed location` event if courier has active package.
     :return main_action_performed: True if main user action - accepting package - has been performed.
     """
-    response = my_packages(TEST_COURIER_PUBKEY)
+    # get launcher packages, as courier can't see new package before confirm couriering
+    response = my_packages(TEST_LAUNCHER_PUBKEY)
     packages = response['packages']
 
-    in_transit_package = next((package for package in packages if package['status'] == 'in transit'))
+    in_transit_package = next((package for package in packages if package['status'] == 'in transit'), None)
     if in_transit_package is not None:
         location_changed_events = [event for event in in_transit_package['events']
-                                   if event['event_type' == 'location changed']]
+                                   if event['event_type'] == 'location changed']
         if len(location_changed_events) < 5:
             location = get_random_coordinates()
         elif len(location_changed_events) < 6:
@@ -247,10 +249,9 @@ def courier_action():
         changed_location_event(
             TEST_COURIER_PUBKEY, escrow_pubkey=in_transit_package['escrow_pubkey'], location=location)
 
-    waiting_pickup_package = next((package for package in packages if package['status'] == 'waiting pickup'))
+    waiting_pickup_package = next((package for package in packages if package['status'] == 'waiting pickup'), None)
     if waiting_pickup_package is not None:
         take_package_from_launcher(waiting_pickup_package)
-        return
 
 
 def recipient_action():
@@ -261,7 +262,7 @@ def recipient_action():
     response = my_packages(TEST_RECIPIENT_PUBKEY)
     packages = response['packages']
 
-    in_transit_package = next((package for package in packages if package['status'] == 'in transit'))
+    in_transit_package = next((package for package in packages if package['status'] == 'in transit'), None)
     if in_transit_package is not None:
         location_events = [event for event in in_transit_package['events']
                            if event['event_type'] == 'location changed']
