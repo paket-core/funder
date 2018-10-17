@@ -279,6 +279,8 @@ def simulation_routine(user):
         LOGGER.error('simulation user activity allowed only in debug mode')
         return
 
+    check_users()
+
     if user == 'launcher':
         launcher_action()
     elif user == 'courier':
