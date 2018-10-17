@@ -15,11 +15,11 @@ import db
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
 TEST_LAUNCHER_SEED = os.environ.get('PAKET_TEST_LAUNCHER_SEED')
-TEST_LAUNCHER_PUBKEY = paket_stellar.stellar_base.Keypair.from_seed(TEST_LAUNCHER_SEED)
+TEST_LAUNCHER_PUBKEY = paket_stellar.stellar_base.Keypair.from_seed(TEST_LAUNCHER_SEED).address().decode()
 TEST_COURIER_SEED = os.environ.get('PAKET_TEST_COURIER_SEED')
-TEST_COURIER_PUBKEY = paket_stellar.stellar_base.Keypair.from_seed(TEST_COURIER_SEED)
+TEST_COURIER_PUBKEY = paket_stellar.stellar_base.Keypair.from_seed(TEST_COURIER_SEED).address().decode()
 TEST_RECIPIENT_SEED = os.environ.get('PAKET_TEST_RECIPIENT_SEED')
-TEST_RECIPIENT_PUBKEY = paket_stellar.stellar_base.Keypair.from_seed(TEST_RECIPIENT_SEED)
+TEST_RECIPIENT_PUBKEY = paket_stellar.stellar_base.Keypair.from_seed(TEST_RECIPIENT_SEED).address().decode()
 XLM_START_BALANCE = os.environ.get('PAKET_SIMULATION_XLM_START_BALANCE')
 BUL_START_BALANCE = os.environ.get('PAKET_SIMULATION_BUL_START_BALANCE')
 ROUTER_URL = os.environ.get('PAKET_ROUTER_URL')
@@ -52,7 +52,7 @@ def call(api_url, path, user_pubkey=None, **kwargs):
     LOGGER.info("calling %s", path)
     headers = {'Pubkey': user_pubkey} if user_pubkey is not None else None
     response = requests.post("{}/{}".format(api_url, path), headers=headers, data=kwargs).json()
-    if response['status'] != 200:
+    if response['status'] >= 300:
         raise SimulationError(response['error'])
     return response
 
@@ -167,7 +167,7 @@ def launch_new_package(package_number):
         'recipient_phone_number': '+40544516250',
         'payment_buls': PAYMENT,
         'collateral_buls': COLLATERAL,
-        'deadline_timestamp': time.time() + 60 * 60 * 24 * 2,
+        'deadline_timestamp': int(time.time()) + 60 * 60 * 24 * 2,
         'description': "Test package number {}".format(package_number),
         'from_location': from_place[0],
         'to_location': to_place[0],
