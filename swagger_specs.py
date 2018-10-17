@@ -79,7 +79,7 @@ GET_USER = {
 
 CALLSIGNS = {
     'parameters': [
-        {'name': 'call_sign_part', 'in': 'formData', 'required': False, 'type': 'string'}],
+        {'name': 'call_sign_prefix', 'in': 'formData', 'required': False, 'type': 'string'}],
     'responses': {
         '200': {'description': 'registered call_signs'}}}
 

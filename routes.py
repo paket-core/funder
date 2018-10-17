@@ -67,11 +67,11 @@ def get_user_handler(pubkey=None, call_sign=None):
 @BLUEPRINT.route("/v{}/callsigns".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.CALLSIGNS)
 @webserver.validation.call
-def callsigns_handler(call_sign_part=None):
+def callsigns_handler(call_sign_prefix=None):
     """
     Get registered callsigns which started with specified string.
     """
-    return {'status': 200, 'callsigns': db.get_callsings(call_sign_part)}
+    return {'status': 200, 'callsigns': db.get_callsings(call_sign_prefix)}
 
 
 @BLUEPRINT.route("/v{}/user_infos".format(VERSION), methods=['POST'])
