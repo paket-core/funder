@@ -176,13 +176,13 @@ def create_user(pubkey, call_sign):
             "user with provided call_sign ({}) already exists".format(call_sign))
 
     with SQL_CONNECTION() as sql:
-        sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (%s, %s)", (pubkey, call_sign))
+        sql.execute("INSERT INTO users (pubkey, call_sign) VALUES (%s, %s)", (pubkey, call_sign.lower()))
 
 
 def get_user(pubkey=None, call_sign=None):
     """Get user pubkey, call_sign, and purchase allowance from either pubkey or call_sign."""
     assert bool(pubkey or call_sign) != bool(pubkey and call_sign), 'specify either pubkey or call_sign'
-    condition = ('pubkey', pubkey) if pubkey else ('call_sign', call_sign)
+    condition = ('pubkey', pubkey) if pubkey else ('call_sign', call_sign.lower())
     with SQL_CONNECTION() as sql:
         sql.execute("SELECT * FROM users WHERE {} = %s LIMIT 1".format(condition[0]), (condition[1], ))
         try:
@@ -195,7 +195,7 @@ def get_callsings(call_sign_prefix=None):
     """Get registered call signs which starts with specified string."""
     with SQL_CONNECTION() as sql:
         if call_sign_prefix is not None and call_sign_prefix:
-            sql.execute("SELECT * FROM users WHERE call_sign LIKE %s", (call_sign_prefix + '%',))
+            sql.execute("SELECT * FROM users WHERE call_sign LIKE %s", (call_sign_prefix.lower() + '%',))
         else:
             sql.execute('SELECT * FROM users')
         return sql.fetchall()
