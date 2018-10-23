@@ -8,6 +8,7 @@ import paket_stellar
 import util.logger
 
 import db
+import simulation
 
 LOGGER = util.logger.logging.getLogger('pkt.funder.routines')
 DEBUG = bool(os.environ.get('PAKET_DEBUG'))
@@ -62,6 +63,12 @@ def create_new_account(user_pubkey, amount):
     """Create new Stellar account and send specified amount of XLM to it"""
     prepared_transaction = paket_stellar.prepare_create_account(paket_stellar.ISSUER, user_pubkey, amount)
     paket_stellar.submit_transaction_envelope(prepared_transaction, FUNDER_SEED)
+
+
+def add_trust(user_pubkey, user_seed):
+    """Add BUL trust to account."""
+    prepared_transaction = paket_stellar.prepare_trust(user_pubkey)
+    paket_stellar.submit_transaction_envelope(prepared_transaction, seed=user_seed)
 
 
 def check_purchases_addresses():
@@ -161,13 +168,17 @@ if __name__ == '__main__':
     try:
         if sys.argv[1] == 'monitor':
             check_purchases_addresses()
-            sys.exit(0)
-        if sys.argv[1] == 'pay':
+        elif sys.argv[1] == 'pay':
             send_requested_currency()
-            sys.exit(0)
-        if sys.argv[1] == 'fund':
+        elif sys.argv[1] == 'fund':
             fund_new_accounts()
-            sys.exit(0)
+        elif sys.argv[1] == 'simulate_launcher':
+            simulation.simulation_routine('launcher')
+        elif sys.argv[1] == 'simulate_courier':
+            simulation.simulation_routine('courier')
+        elif sys.argv[1] == 'simulate_recipient':
+            simulation.simulation_routine('recipient')
+        sys.exit(0)
     except IndexError:
         pass
-    print(' Usage: python routines.py [monitor|pay|fund]')
+    print(' Usage: python routines.py [monitor|pay|fund|simulate_launcher|simulate_courier|simulate_recipient]')
