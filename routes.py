@@ -43,6 +43,20 @@ webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UnknownUser] = 404
 webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UserAlreadyExists] = 403
 
 
+# Internal error codes.
+webserver.validation.INTERNAL_ERROR_CODES[db.paket_stellar.NotOnTestnet] = 120
+webserver.validation.INTERNAL_ERROR_CODES[db.paket_stellar.StellarTransactionFailed] = 200
+webserver.validation.INTERNAL_ERROR_CODES[db.paket_stellar.stellar_base.address.AccountNotExistError] = 201
+webserver.validation.INTERNAL_ERROR_CODES[db.paket_stellar.TrustError] = 202
+webserver.validation.INTERNAL_ERROR_CODES[db.UnknownUser] = 300
+webserver.validation.INTERNAL_ERROR_CODES[db.UserAlreadyExists] = 301
+webserver.validation.INTERNAL_ERROR_CODES[db.NotEnoughInfo] = 302
+webserver.validation.INTERNAL_ERROR_CODES[db.InvalidPhoneNumber] = 303
+webserver.validation.INTERNAL_ERROR_CODES[db.PhoneNumberAlreadyInUse] = 304
+webserver.validation.INTERNAL_ERROR_CODES[db.InvalidVerificationCode] = 310
+webserver.validation.INTERNAL_ERROR_CODES[db.FundLimitReached] = 320
+
+
 @BLUEPRINT.route("/v{}/create_user".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.CREATE_USER)
 @webserver.validation.call(['call_sign'], require_auth=True)
