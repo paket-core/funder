@@ -22,6 +22,8 @@ TEST_RECIPIENT_SEED = os.environ.get('PAKET_TEST_RECIPIENT_SEED')
 TEST_RECIPIENT_PUBKEY = paket_stellar.stellar_base.Keypair.from_seed(TEST_RECIPIENT_SEED).address().decode()
 XLM_START_BALANCE = os.environ.get('PAKET_SIMULATION_XLM_START_BALANCE')
 BUL_START_BALANCE = os.environ.get('PAKET_SIMULATION_BUL_START_BALANCE')
+# in future router url should be built from `PORT` and 'VERSION' env variables and
+# `localhost` as hostname. See more info: https://github.com/paket-core/manager/pull/11#discussion_r227434755
 ROUTER_URL = os.environ.get('PAKET_ROUTER_URL')
 ESCROW_BALANCE = 40000000
 PAYMENT = 5000000
