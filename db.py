@@ -108,7 +108,7 @@ def init_db():
                 timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                 user_pubkey VARCHAR(56) NOT NULL,
                 currency VARCHAR(3),
-                currency_amount INTEGER,
+                currency_amount BIGINT,
                 euro_cents INTEGER,
                 PRIMARY KEY (timestamp, user_pubkey),
                 FOREIGN KEY(user_pubkey) REFERENCES users(pubkey))''')
@@ -382,7 +382,7 @@ def fund(user_pubkey):
 
 
 def get_unfunded():
-    """Get new accounts that has been not funded yet."""
+    """Get new accounts that have not been funded yet."""
     with SQL_CONNECTION() as sql:
         sql.execute('''
             SELECT pubkey, call_sign FROM users
