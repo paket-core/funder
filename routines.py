@@ -73,7 +73,7 @@ def add_trust(user_pubkey, user_seed):
 
 def check_purchases_addresses():
     """Check purchases addresses and set paid status correspondingly to balance"""
-    purchases = db.get_unpaid()
+    purchases = db.get_unpaid_purchases()
     for purchase in purchases:
         LOGGER.info("checking address %s", purchase['payment_pubkey'])
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
@@ -82,12 +82,14 @@ def check_purchases_addresses():
             else (db.util.conversion.eth_to_euro_cents, db.prices.eth_price())
         euro_cents_balance = conversion_function(balance, price)
         if euro_cents_balance >= db.MINIMUM_PAYMENT:
-            db.update_purchase(purchase['payment_pubkey'], 1)
+            db.set_purchase(
+                purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
+                purchase['euro_cents'], purchase['requested_currency'], paid=1)
 
 
 def send_requested_currency():
     """Check purchases addresses with paid status and send requested currency to user account."""
-    purchases = db.get_paid()
+    purchases = db.get_paid_purchases()
     for purchase in purchases:
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
         conversion_function, price = (db.util.conversion.btc_to_euro_cents, db.prices.btc_price()) \
@@ -107,15 +109,21 @@ def send_requested_currency():
                     if account['bul_balance'] + fund_amount <= account['bul_limit']:
                         fund_account(purchase['user_pubkey'], fund_amount, 'BUL')
                         LOGGER.info("%s funded with %s BUL", purchase['user_pubkey'], fund_amount)
-                        db.update_purchase(purchase['payment_pubkey'], 2)
+                        db.set_purchase(
+                            purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
+                            purchase['euro_cents'], purchase['requested_currency'], paid=2)
                     else:
                         LOGGER.error("account %s need to set higher limit for BUL."
                                      " balance: %s limit: %s amount to fund: %s", purchase['user_pubkey'],
                                      account['bul_balance'], account['bul_limit'], fund_amount)
-                        db.update_purchase(purchase['payment_pubkey'], -1)
+                        db.set_purchase(
+                            purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
+                            purchase['euro_cents'], purchase['requested_currency'], paid=-1)
                 except (paket_stellar.TrustError, paket_stellar.stellar_base.exceptions.AccountNotExistError) as exc:
                     LOGGER.error(str(exc))
-                    db.update_purchase(purchase['payment_pubkey'], -1)
+                    db.set_purchase(
+                        purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
+                        purchase['euro_cents'], purchase['requested_currency'], paid=-1)
             else:
                 fund_amount = db.util.conversion.euro_cents_to_xlm_stroops(
                     euro_to_fund, db.prices.xlm_price())
@@ -126,7 +134,9 @@ def send_requested_currency():
                 except paket_stellar.stellar_base.address.AccountNotExistError:
                     LOGGER.info("account %s does not exist and will be created", purchase['user_pubkey'])
                     create_new_account(purchase['user_pubkey'], fund_amount)
-                db.update_purchase(purchase['payment_pubkey'], 2)
+                db.set_purchase(
+                    purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
+                    purchase['euro_cents'], purchase['requested_currency'], paid=2)
 
 
 def fund_new_accounts():

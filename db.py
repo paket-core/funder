@@ -184,7 +184,7 @@ def get_user(pubkey=None, call_sign=None):
     assert bool(pubkey or call_sign) != bool(pubkey and call_sign), 'specify either pubkey or call_sign'
     condition = ('pubkey', pubkey) if pubkey else ('call_sign', call_sign.lower())
     with SQL_CONNECTION() as sql:
-        sql.execute("SELECT * FROM users WHERE {} = %s LIMIT 1".format(condition[0]), (condition[1], ))
+        sql.execute("SELECT * FROM users WHERE {} = %s LIMIT 1".format(condition[0]), (condition[1],))
         try:
             return sql.fetchall()[0]
         except IndexError:
@@ -307,11 +307,7 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
 
     network = "btc{}".format('test' if DEBUG else '') if payment_currency.upper() == 'BTC' else 'ethereum'
     payment_pubkey = pywallet.wallet.create_address(network=network, xpub=XPUB)['address']
-    with SQL_CONNECTION() as sql:
-        sql.execute(
-            """INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency)
-            VALUES (%s, %s, %s, %s, %s)""",
-            (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency))
+    set_purchase(user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency)
     return payment_pubkey
 
 
@@ -392,31 +388,62 @@ def get_unfunded():
         return sql.fetchall()
 
 
-def get_purchases():
-    """Get all purchases"""
+# pylint: disable=too-many-arguments
+def set_purchase(user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency, paid=0):
+    """Add purchase info."""
     with SQL_CONNECTION() as sql:
-        sql.execute('SELECT * FROM purchases')
+        sql.execute('''
+            INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency, paid)
+            VALUES (%s, %s, %s, %s, %s, %s)''',
+                    (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency, paid))
+# pylint: enable=too-many-arguments
+
+
+def get_purchases(paid_status=None):
+    """Get all purchases or purchases with specified paid status."""
+    if paid_status is not None:
+        sql_query = '''
+            SELECT payment_pubkey AS payment_address, purchases.* FROM purchases
+            HAVING
+                (SELECT paid FROM purchases WHERE payment_pubkey = payment_address ORDER BY timestamp DESC LIMIT 1) = %s
+            AND paid = %s'''
+    else:
+        sql_query = 'SELECT * FROM purchases'
+    with SQL_CONNECTION() as sql:
+        sql.execute(sql_query, (paid_status, paid_status))
         return sql.fetchall()
 
 
-def get_unpaid():
-    """Get all unpaid addresses."""
+def get_failed_purchases():
+    """Get all failed purchases."""
+    return get_purchases(paid_status=-1)
+
+
+def get_unpaid_purchases():
+    """Get all unpaid purchases."""
+    return get_purchases(paid_status=0)
+
+
+def get_paid_purchases():
+    """Get all paid purchases."""
+    return get_purchases(paid_status=1)
+
+
+def get_completed_purchases():
+    """Get all completed purchases."""
+    return get_purchases(paid_status=2)
+
+
+def get_current_purchases():
+    """Get current status for all purchases."""
     with SQL_CONNECTION() as sql:
-        sql.execute('SELECT * FROM purchases WHERE paid = 0')
+        sql.execute('''
+            SELECT DISTINCT payment_pubkey AS payment_address, paid AS paid_status, purchases.* FROM purchases
+            HAVING ((
+                SELECT paid FROM purchases
+                WHERE payment_pubkey = payment_address
+                ORDER BY timestamp DESC LIMIT 1) = paid_status)''')
         return sql.fetchall()
-
-
-def get_paid():
-    """Get all paid addresses."""
-    with SQL_CONNECTION() as sql:
-        sql.execute('SELECT * FROM purchases WHERE paid = 1')
-        return sql.fetchall()
-
-
-def update_purchase(payment_pubkey, paid_status):
-    """Update purchase status"""
-    with SQL_CONNECTION() as sql:
-        sql.execute("UPDATE purchases SET paid = %s WHERE payment_pubkey = %s", (paid_status, payment_pubkey))
 
 
 def get_users():
