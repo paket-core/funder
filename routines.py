@@ -89,13 +89,13 @@ def send_requested_bul(purchase, fund_amount):
             db.set_purchase(
                 purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
                 purchase['euro_cents'], purchase['requested_currency'], paid=-1)
-            LOGGER.info("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
+            LOGGER.error("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
     except (paket_stellar.TrustError, paket_stellar.stellar_base.exceptions.AccountNotExistError) as exc:
         LOGGER.error(str(exc))
         db.set_purchase(
             purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
             purchase['euro_cents'], purchase['requested_currency'], paid=-1)
-        LOGGER.info("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
+        LOGGER.error("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
 
 
 def send_requested_xlm(purchase, fund_amount):
