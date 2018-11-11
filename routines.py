@@ -91,11 +91,14 @@ def send_requested_currency():
     """Check purchases addresses with paid status and send requested currency to user account."""
     purchases = db.get_paid_purchases()
     for purchase in purchases:
+        LOGGER.info(
+            "processing purchase for account %s with payment address %s",
+            purchase['user_pubkey'], purchase['payment_pubkey'])
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
 
         if balance == 0:
-            LOGGER.warning(
-                "address %s has empty balance and should not have to be marked as paid", purchase['payment_pubkey'])
+            LOGGER.error(
+                "address %s has empty balance and should not be marked as paid", purchase['payment_pubkey'])
             continue
         else:
             LOGGER.info(
@@ -109,44 +112,57 @@ def send_requested_currency():
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
         monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
         remaining_monthly_allowance = monthly_allowance - monthly_expanses
-        euro_to_fund = min(euro_cents_balance, remaining_monthly_allowance)
-        if euro_to_fund:
-            if purchase['requested_currency'] == 'BUL':
-                fund_amount = db.util.conversion.euro_cents_to_bul_stroops(
-                    euro_to_fund, db.prices.bul_price())
-                try:
-                    account = paket_stellar.get_bul_account(purchase['user_pubkey'])
-                    if account['bul_balance'] + fund_amount <= account['bul_limit']:
-                        fund_account(purchase['user_pubkey'], fund_amount, 'BUL')
-                        LOGGER.info("%s funded with %s BUL", purchase['user_pubkey'], fund_amount)
-                        db.set_purchase(
-                            purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-                            purchase['euro_cents'], purchase['requested_currency'], paid=2)
-                    else:
-                        LOGGER.error("account %s need to set higher limit for BUL."
-                                     " balance: %s limit: %s amount to fund: %s", purchase['user_pubkey'],
-                                     account['bul_balance'], account['bul_limit'], fund_amount)
-                        db.set_purchase(
-                            purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-                            purchase['euro_cents'], purchase['requested_currency'], paid=-1)
-                except (paket_stellar.TrustError, paket_stellar.stellar_base.exceptions.AccountNotExistError) as exc:
-                    LOGGER.error(str(exc))
+        LOGGER.info("monthly allowance is %s EUR", monthly_allowance)
+        LOGGER.info("monthly expenses is %s EUR", monthly_expanses)
+
+        if remaining_monthly_allowance <= 0:
+            LOGGER.warning(
+                "account %s have exhausted monthly allowance and will not be funded", purchase['user_pubkey'])
+            continue
+        elif remaining_monthly_allowance < euro_cents_balance:
+            LOGGER.warning(
+                "account %s purchased %s EUR but remaining allowance is %s EUR",
+                purchase['user_pubkey'], euro_cents_balance, remaining_monthly_allowance)
+            # TODO: mark this purchase as outreached
+        else:
+            LOGGER.info("account %s performed purchase within allowed limits", purchase['user_pubkey'])
+
+        if purchase['requested_currency'] == 'BUL':
+            fund_amount = db.util.conversion.euro_cents_to_bul_stroops(
+                euro_cents_balance, db.prices.bul_price())
+            try:
+                account = paket_stellar.get_bul_account(purchase['user_pubkey'])
+                if account['bul_balance'] + fund_amount <= account['bul_limit']:
+                    fund_account(purchase['user_pubkey'], fund_amount, 'BUL')
+                    LOGGER.info("%s funded with %s BUL", purchase['user_pubkey'], fund_amount)
+                    db.set_purchase(
+                        purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
+                        purchase['euro_cents'], purchase['requested_currency'], paid=2)
+                else:
+                    LOGGER.error("account %s need to set higher limit for BUL."
+                                 " balance: %s limit: %s amount to fund: %s", purchase['user_pubkey'],
+                                 account['bul_balance'], account['bul_limit'], fund_amount)
                     db.set_purchase(
                         purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
                         purchase['euro_cents'], purchase['requested_currency'], paid=-1)
-            else:
-                fund_amount = db.util.conversion.euro_cents_to_xlm_stroops(
-                    euro_to_fund, db.prices.xlm_price())
-                try:
-                    paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
-                    fund_account(purchase['user_pubkey'], fund_amount, 'XLM')
-                    LOGGER.info("%s funded with %s XLM", purchase['user_pubkey'], fund_amount)
-                except paket_stellar.stellar_base.address.AccountNotExistError:
-                    LOGGER.info("account %s does not exist and will be created", purchase['user_pubkey'])
-                    create_new_account(purchase['user_pubkey'], fund_amount)
+            except (paket_stellar.TrustError, paket_stellar.stellar_base.exceptions.AccountNotExistError) as exc:
+                LOGGER.error(str(exc))
                 db.set_purchase(
                     purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-                    purchase['euro_cents'], purchase['requested_currency'], paid=2)
+                    purchase['euro_cents'], purchase['requested_currency'], paid=-1)
+        else:
+            fund_amount = db.util.conversion.euro_cents_to_xlm_stroops(
+                euro_cents_balance, db.prices.xlm_price())
+            try:
+                paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
+                fund_account(purchase['user_pubkey'], fund_amount, 'XLM')
+                LOGGER.info("%s funded with %s XLM", purchase['user_pubkey'], fund_amount)
+            except paket_stellar.stellar_base.address.AccountNotExistError:
+                LOGGER.info("account %s does not exist and will be created", purchase['user_pubkey'])
+                create_new_account(purchase['user_pubkey'], fund_amount)
+            db.set_purchase(
+                purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
+                purchase['euro_cents'], purchase['requested_currency'], paid=2)
 
 
 def fund_new_accounts():
