@@ -92,10 +92,20 @@ def send_requested_currency():
     purchases = db.get_paid_purchases()
     for purchase in purchases:
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-        conversion_function, price = (db.util.conversion.btc_to_euro_cents, db.prices.btc_price()) \
-            if purchase['payment_currency'].upper() == 'BTC' \
-            else (db.util.conversion.eth_to_euro_cents, db.prices.eth_price())
-        euro_cents_balance = conversion_function(balance, price)
+
+        if balance == 0:
+            LOGGER.warning(
+                "address %s has empty balance and should not have to be marked as paid", purchase['payment_pubkey'])
+            continue
+        else:
+            LOGGER.info(
+                "address %s has %s %s on balance", purchase['payment_pubkey'], balance, purchase['payment_currency'])
+
+        payment_currency = purchase['payment_currency'].upper()
+        if payment_currency == 'BTC':
+            euro_cents_balance = db.util.conversion.btc_to_euro_cents(balance, db.prices.btc_price())
+        else:
+            euro_cents_balance = db.util.conversion.eth_to_euro_cents(balance, db.prices.eth_price())
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
         monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
         remaining_monthly_allowance = monthly_allowance - monthly_expanses
