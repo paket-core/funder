@@ -288,7 +288,7 @@ def get_monthly_expenses(pubkey):
     with SQL_CONNECTION() as sql:
         sql.execute("""
             SELECT CAST(SUM(euro_cents) AS SIGNED) euro_cents FROM purchases
-            WHERE user_pubkey = %s AND timestamp > %s AND paid > 0""", (
+            WHERE user_pubkey = %s AND timestamp > %s AND paid > 1""", (
                 pubkey, time.time() - (30 * 24 * 60 * 60)))
         try:
             return sql.fetchall()[0][b'euro_cents'] or 0
