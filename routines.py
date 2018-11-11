@@ -81,6 +81,7 @@ def send_requested_bul(purchase, fund_amount):
             db.set_purchase(
                 purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
                 purchase['euro_cents'], purchase['requested_currency'], paid=2)
+            LOGGER.info("purchase for account %s marked as funded", purchase['user_pubkey'])
         else:
             LOGGER.error("account %s need to set higher limit for BUL."
                          " balance: %s limit: %s amount to fund: %s", purchase['user_pubkey'],
@@ -88,11 +89,13 @@ def send_requested_bul(purchase, fund_amount):
             db.set_purchase(
                 purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
                 purchase['euro_cents'], purchase['requested_currency'], paid=-1)
+            LOGGER.info("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
     except (paket_stellar.TrustError, paket_stellar.stellar_base.exceptions.AccountNotExistError) as exc:
         LOGGER.error(str(exc))
         db.set_purchase(
             purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
             purchase['euro_cents'], purchase['requested_currency'], paid=-1)
+        LOGGER.info("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
 
 
 def send_requested_xlm(purchase, fund_amount):
@@ -107,46 +110,62 @@ def send_requested_xlm(purchase, fund_amount):
     db.set_purchase(
         purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
         purchase['euro_cents'], purchase['requested_currency'], paid=2)
+    LOGGER.info("purchase with address %s marked as funded", purchase['payment_pubkey'])
 
 
 def check_purchases_addresses():
     """Check purchases addresses and set paid status correspondingly to balance"""
     purchases = db.get_unpaid_purchases()
+    LOGGER.info("%s purchases to check", len(purchases))
     for purchase in purchases:
         LOGGER.info("checking address %s", purchase['payment_pubkey'])
         balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-        conversion_function, price = (db.util.conversion.btc_to_euro_cents, db.prices.btc_price()) \
-            if purchase['payment_currency'].upper() == 'BTC' \
-            else (db.util.conversion.eth_to_euro_cents, db.prices.eth_price())
-        euro_cents_balance = conversion_function(balance, price)
-        if euro_cents_balance >= db.MINIMUM_PAYMENT:
-            db.set_purchase(
-                purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-                purchase['euro_cents'], purchase['requested_currency'], paid=1)
-
-
-def send_requested_currency():
-    """Check purchases addresses with paid status and send requested currency to user account."""
-    purchases = db.get_paid_purchases()
-    for purchase in purchases:
         LOGGER.info(
-            "processing purchase for account %s with payment address %s",
-            purchase['user_pubkey'], purchase['payment_pubkey'])
-        balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
-
+            "address %s has %s %s on balance", purchase['payment_pubkey'],
+            balance, purchase['payment_currency'])
         if balance == 0:
-            LOGGER.error(
-                "address %s has empty balance and should not be marked as paid", purchase['payment_pubkey'])
             continue
-        else:
-            LOGGER.info(
-                "address %s has %s %s on balance", purchase['payment_pubkey'], balance, purchase['payment_currency'])
 
         payment_currency = purchase['payment_currency'].upper()
         if payment_currency == 'BTC':
             euro_cents_balance = db.util.conversion.btc_to_euro_cents(balance, db.prices.btc_price())
         else:
             euro_cents_balance = db.util.conversion.eth_to_euro_cents(balance, db.prices.eth_price())
+        LOGGER.info("%s %s = %s EUR cents", balance, purchase['payment_currency'], euro_cents_balance)
+        if euro_cents_balance >= db.MINIMUM_PAYMENT:
+            db.set_purchase(
+                purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
+                purchase['euro_cents'], purchase['requested_currency'], paid=1)
+            LOGGER.info("purchase with address %s marked as paid", purchase['payment_pubkey'])
+        else:
+            LOGGER.info("purchase with address %s has balance less than minimum allowed for funding "
+                        "and will not be marked as paid", purchase['payment_pubkey'])
+
+
+def send_requested_currency():
+    """Check purchases addresses with paid status and send requested currency to user account."""
+    purchases = db.get_paid_purchases()
+    LOGGER.info("%s paid purchases", len(purchases))
+    for purchase in purchases:
+        LOGGER.info(
+            "processing purchase for account %s with payment address %s",
+            purchase['user_pubkey'], purchase['payment_pubkey'])
+        balance = get_balance(purchase['payment_pubkey'], purchase['payment_currency'])
+
+        payment_currency = purchase['payment_currency'].upper()
+        if balance == 0:
+            LOGGER.error(
+                "address %s has empty balance and should not be marked as paid", purchase['payment_pubkey'])
+            continue
+        else:
+            LOGGER.info(
+                "address %s has %s %s on balance", purchase['payment_pubkey'], balance, payment_currency)
+
+        if payment_currency == 'BTC':
+            euro_cents_balance = db.util.conversion.btc_to_euro_cents(balance, db.prices.btc_price())
+        else:
+            euro_cents_balance = db.util.conversion.eth_to_euro_cents(balance, db.prices.eth_price())
+        LOGGER.info("%s %s = %s EUR cents", balance, payment_currency, euro_cents_balance)
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
         monthly_expenses = db.get_monthly_expenses(purchase['user_pubkey'])
         remaining_monthly_allowance = monthly_allowance - monthly_expenses
