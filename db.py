@@ -283,8 +283,8 @@ def get_monthly_allowance(pubkey):
     return BASIC_MONTHLY_ALLOWANCE if get_test_result(pubkey, 'basic') > 0 else 0
 
 
-def get_monthly_expanses(pubkey):
-    """Get a user's expanses in the last month."""
+def get_monthly_expenses(pubkey):
+    """Get a user's expenses in the last month."""
     with SQL_CONNECTION() as sql:
         sql.execute("""
             SELECT CAST(SUM(euro_cents) AS SIGNED) euro_cents FROM purchases
@@ -300,7 +300,7 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
     """Get an address to pay for a purchase."""
     assert payment_currency in ['BTC', 'ETH'], 'payment_currency must be BTC or ETH'
     assert requested_currency in ['BUL', 'XLM'], 'requested_currency must be BUL or XLM'
-    remaining_monthly_allowance = get_monthly_allowance(user_pubkey) - get_monthly_expanses(user_pubkey)
+    remaining_monthly_allowance = get_monthly_allowance(user_pubkey) - get_monthly_expenses(user_pubkey)
     assert remaining_monthly_allowance >= int(euro_cents), \
         "{} is allowed to purchase up to {} euro-cents when {} are required".format(
             user_pubkey, remaining_monthly_allowance, euro_cents)
@@ -453,5 +453,5 @@ def get_users():
         return {user['call_sign']: dict(
             get_user_infos(user['pubkey']),
             monthly_allowance=get_monthly_allowance(user['pubkey']),
-            monthly_expanses=get_monthly_expanses(user['pubkey'])
+            monthly_expenses=get_monthly_expenses(user['pubkey'])
         ) for user in sql.fetchall()}

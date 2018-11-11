@@ -148,10 +148,10 @@ def send_requested_currency():
         else:
             euro_cents_balance = db.util.conversion.eth_to_euro_cents(balance, db.prices.eth_price())
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
-        monthly_expanses = db.get_monthly_expanses(purchase['user_pubkey'])
-        remaining_monthly_allowance = monthly_allowance - monthly_expanses
+        monthly_expenses = db.get_monthly_expenses(purchase['user_pubkey'])
+        remaining_monthly_allowance = monthly_allowance - monthly_expenses
         LOGGER.info("monthly allowance is %s EUR", monthly_allowance)
-        LOGGER.info("monthly expenses is %s EUR", monthly_expanses)
+        LOGGER.info("monthly expenses is %s EUR", monthly_expenses)
 
         if remaining_monthly_allowance <= 0:
             LOGGER.warning(
