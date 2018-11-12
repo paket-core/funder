@@ -88,11 +88,11 @@ class DBTest(unittest.TestCase):
         self.assertEqual(monthly_expanses, 0, 'monthly expanses are incorrect')
         db.update_test(pubkey, 'basic', 1)
         payment_address = db.get_payment_address(pubkey, 500, 'BTC', 'BUL')
-        db.update_purchase(payment_address, 1)
+        db.set_purchase(pubkey, payment_address, 'BTC', 500, 'BUL', 1)
         monthly_expanses = db.get_monthly_expanses(pubkey)
         self.assertEqual(monthly_expanses, 500, 'monthly expanses are incorrect')
         payment_address = db.get_payment_address(pubkey, 600, 'ETH', 'XLM')
-        db.update_purchase(payment_address, 1)
+        db.set_purchase(pubkey, payment_address, 'ETH', 500, 'XLM', 1)
         monthly_expanses = db.get_monthly_expanses(pubkey)
         self.assertEqual(monthly_expanses, 1100, 'monthly expanses are incorrect')
 
@@ -102,7 +102,7 @@ class DBTest(unittest.TestCase):
         self.internal_test_create_user(pubkey, call_sign)
         db.update_test('pubkey', 'basic', 1)
         payment_address = db.get_payment_address(pubkey, 500, 'BTC', 'BUL')
-        purchase = db.get_unpaid()[0]
+        purchase = db.get_unpaid_purchases()[0]
         self.assertEqual(payment_address, purchase['payment_pubkey'], 'payment address was not created for user')
         self.assertEqual(pubkey, purchase['user_pubkey'], 'payment address was created for another user')
         self.assertEqual(500, purchase['euro_cents'], 'created record has wrong euro_cents value')
@@ -116,7 +116,7 @@ class DBTest(unittest.TestCase):
         db.update_test(pubkey, 'basic', 1)
         purchase_amount = 5
         payment_addresses = [db.get_payment_address(pubkey, 700, 'BTC', 'XLM') for _ in range(purchase_amount)]
-        unpaid = db.get_unpaid()
+        unpaid = db.get_unpaid_purchases()
         self.assertEqual(len(unpaid), purchase_amount, 'actual purchases amount does not correspond to control value')
         for address in payment_addresses:
             with self.subTest():
@@ -131,8 +131,8 @@ class DBTest(unittest.TestCase):
         purchase_amount = 5
         payment_addresses = [db.get_payment_address(pubkey, 700, 'BTC', 'XLM') for _ in range(purchase_amount)]
         for address in payment_addresses:
-            db.update_purchase(address, 1)
-        paid = db.get_paid()
+            db.set_purchase(pubkey, address, 'BTC', 700, 'XLM', 1)
+        paid = db.get_paid_purchases()
         self.assertEqual(len(paid), purchase_amount, 'actual purchases amount does not correspond to control value')
         for address in payment_addresses:
             with self.subTest():
@@ -145,6 +145,6 @@ class DBTest(unittest.TestCase):
         self.internal_test_create_user(pubkey, call_sign)
         db.update_test(pubkey, 'basic', 1)
         address = db.get_payment_address(pubkey, 700, 'BTC', 'XLM')
-        db.update_purchase(address, 1)
-        purchase = db.get_paid()[0]
+        db.set_purchase(pubkey, address, 'BTC', 700, 'XLM', 1)
+        purchase = db.get_paid_purchases()[0]
         self.assertEqual(purchase['paid'], 1, 'purchase does not updated')

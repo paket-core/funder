@@ -184,7 +184,7 @@ def get_user(pubkey=None, call_sign=None):
     assert bool(pubkey or call_sign) != bool(pubkey and call_sign), 'specify either pubkey or call_sign'
     condition = ('pubkey', pubkey) if pubkey else ('call_sign', call_sign.lower())
     with SQL_CONNECTION() as sql:
-        sql.execute("SELECT * FROM users WHERE {} = %s LIMIT 1".format(condition[0]), (condition[1], ))
+        sql.execute("SELECT * FROM users WHERE {} = %s LIMIT 1".format(condition[0]), (condition[1],))
         try:
             return sql.fetchall()[0]
         except IndexError:
@@ -283,12 +283,12 @@ def get_monthly_allowance(pubkey):
     return BASIC_MONTHLY_ALLOWANCE if get_test_result(pubkey, 'basic') > 0 else 0
 
 
-def get_monthly_expanses(pubkey):
-    """Get a user's expanses in the last month."""
+def get_monthly_expenses(pubkey):
+    """Get a user's expenses in the last month."""
     with SQL_CONNECTION() as sql:
         sql.execute("""
             SELECT CAST(SUM(euro_cents) AS SIGNED) euro_cents FROM purchases
-            WHERE user_pubkey = %s AND timestamp > %s AND paid > 0""", (
+            WHERE user_pubkey = %s AND timestamp > %s AND paid > 1""", (
                 pubkey, time.time() - (30 * 24 * 60 * 60)))
         try:
             return sql.fetchall()[0][b'euro_cents'] or 0
@@ -300,18 +300,14 @@ def get_payment_address(user_pubkey, euro_cents, payment_currency, requested_cur
     """Get an address to pay for a purchase."""
     assert payment_currency in ['BTC', 'ETH'], 'payment_currency must be BTC or ETH'
     assert requested_currency in ['BUL', 'XLM'], 'requested_currency must be BUL or XLM'
-    remaining_monthly_allowance = get_monthly_allowance(user_pubkey) - get_monthly_expanses(user_pubkey)
+    remaining_monthly_allowance = get_monthly_allowance(user_pubkey) - get_monthly_expenses(user_pubkey)
     assert remaining_monthly_allowance >= int(euro_cents), \
-        "{} is allowed to purchase up to {} euro-cents when {} are required".format(
+        "{} is allowed to purchase up to {} euro-cents when {} are requested".format(
             user_pubkey, remaining_monthly_allowance, euro_cents)
 
     network = "btc{}".format('test' if DEBUG else '') if payment_currency.upper() == 'BTC' else 'ethereum'
     payment_pubkey = pywallet.wallet.create_address(network=network, xpub=XPUB)['address']
-    with SQL_CONNECTION() as sql:
-        sql.execute(
-            """INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency)
-            VALUES (%s, %s, %s, %s, %s)""",
-            (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency))
+    set_purchase(user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency)
     return payment_pubkey
 
 
@@ -392,31 +388,62 @@ def get_unfunded():
         return sql.fetchall()
 
 
-def get_purchases():
-    """Get all purchases"""
+# pylint: disable=too-many-arguments
+def set_purchase(user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency, paid=0):
+    """Add purchase info."""
     with SQL_CONNECTION() as sql:
-        sql.execute('SELECT * FROM purchases')
+        sql.execute('''
+            INSERT INTO purchases (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency, paid)
+            VALUES (%s, %s, %s, %s, %s, %s)''',
+                    (user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency, paid))
+# pylint: enable=too-many-arguments
+
+
+def get_purchases(paid_status=None):
+    """Get all purchases or purchases with specified paid status."""
+    if paid_status is not None:
+        sql_query = '''
+            SELECT payment_pubkey AS payment_address, purchases.* FROM purchases
+            HAVING
+                (SELECT paid FROM purchases WHERE payment_pubkey = payment_address ORDER BY timestamp DESC LIMIT 1) = %s
+            AND paid = %s'''
+    else:
+        sql_query = 'SELECT * FROM purchases'
+    with SQL_CONNECTION() as sql:
+        sql.execute(sql_query, (paid_status, paid_status))
         return sql.fetchall()
 
 
-def get_unpaid():
-    """Get all unpaid addresses."""
+def get_failed_purchases():
+    """Get all failed purchases."""
+    return get_purchases(paid_status=-1)
+
+
+def get_unpaid_purchases():
+    """Get all unpaid purchases."""
+    return get_purchases(paid_status=0)
+
+
+def get_paid_purchases():
+    """Get all paid purchases."""
+    return get_purchases(paid_status=1)
+
+
+def get_completed_purchases():
+    """Get all completed purchases."""
+    return get_purchases(paid_status=2)
+
+
+def get_current_purchases():
+    """Get current status for all purchases."""
     with SQL_CONNECTION() as sql:
-        sql.execute('SELECT * FROM purchases WHERE paid = 0')
+        sql.execute('''
+            SELECT DISTINCT payment_pubkey AS payment_address, paid AS paid_status, purchases.* FROM purchases
+            HAVING ((
+                SELECT paid FROM purchases
+                WHERE payment_pubkey = payment_address
+                ORDER BY timestamp DESC LIMIT 1) = paid_status)''')
         return sql.fetchall()
-
-
-def get_paid():
-    """Get all paid addresses."""
-    with SQL_CONNECTION() as sql:
-        sql.execute('SELECT * FROM purchases WHERE paid = 1')
-        return sql.fetchall()
-
-
-def update_purchase(payment_pubkey, paid_status):
-    """Update purchase status"""
-    with SQL_CONNECTION() as sql:
-        sql.execute("UPDATE purchases SET paid = %s WHERE payment_pubkey = %s", (paid_status, payment_pubkey))
 
 
 def get_users():
@@ -426,5 +453,5 @@ def get_users():
         return {user['call_sign']: dict(
             get_user_infos(user['pubkey']),
             monthly_allowance=get_monthly_allowance(user['pubkey']),
-            monthly_expanses=get_monthly_expanses(user['pubkey'])
+            monthly_expenses=get_monthly_expenses(user['pubkey'])
         ) for user in sql.fetchall()}

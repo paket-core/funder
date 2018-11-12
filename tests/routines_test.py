@@ -66,7 +66,7 @@ class RoutinesTest(unittest.TestCase):
             self.eth_full_payment if address in full_paid_addresses else self.eth_half_payment
 
         routines.check_purchases_addresses()
-        purchases = db.get_unpaid()
+        purchases = db.get_unpaid_purchases()
         self.assertNotEqual(len(purchases), 0)
         for purchase in purchases:
             if purchase['payment_pubkey'] in full_paid_addresses:
@@ -101,9 +101,9 @@ class RoutinesTest(unittest.TestCase):
 
         routines.check_purchases_addresses()
         routines.send_requested_currency()
-        purchases = db.get_paid()
+        purchases = db.get_paid_purchases()
         self.assertEqual(len(purchases), 0)
-        for purchase in db.get_purchases():
+        for purchase in db.get_current_purchases():
             if purchase['payment_pubkey'] in successful_address:
                 self.assertEqual(purchase['paid'], 2, "purchase with address: {} has paid status: {} but expected: 2".
                                  format(purchase['payment_pubkey'], purchase['paid']))
