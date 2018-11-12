@@ -1,4 +1,5 @@
 """Simulates user activity - for debug only."""
+import csv
 import json
 import os
 import random
@@ -28,21 +29,28 @@ ROUTER_URL = os.environ.get('PAKET_ROUTER_URL')
 ESCROW_BALANCE = 40000000
 PAYMENT = 5000000
 COLLATERAL = 10000000
-PLACES = {
-    'from': [
-        ('49.9944226,36.1646005', 'Nyzhnya Hyivska St 142 KharkivKharkivska oblast'),
-        ('52.3618169,16.9324558', 'Nad Starynka 18 61-361 Poznan Poland'),
-        ('-4.0541548,39.6965244', 'Nyali Mombasa Kenya'),
-        ('-16.366137,-48.9398591', 'R. 6 Q 12 31 - Jardim Arco Verde Brazil'),
-        ('34.023181,-94.7417068', '411 W Slater St Broken Bow OK 74728 USA'),
-        ('11.3334285,108.8717923', 'Phuoc Diem Ninh Thuan Province Vietnam')],
-    'to': [
-        ('49.2935249,-123.1375815', '1960 Alberni St #804 Vancouver BC V6G 1B4 Canada'),
-        ('-35.4198461,149.0681731', '320 Reed St Canberra Australian Capital Territory Australia'),
-        ('33.8553049,130.8657624', '3 Chome-20-2 Kumagai Kitakyushu Fukuoka Prefecture Japan'),
-        ('29.4159592,106.9277615', 'Banan Chongqing China'),
-        ('32.0125571,34.7389795', 'Bat Yam Israel'),
-        ('-34.2014474,24.8263067', 'Cape St Francis 6313 South Africa')]}
+
+
+def get_cities():
+    """Get list about 13 thousand cities."""
+    with open('worldcities.csv', encoding='utf-8') as csvfile:
+        cities_reader = csv.DictReader(csvfile, delimiter=',')
+        return [row for row in cities_reader]
+
+
+def get_random_place(cities, unacceptable_locations=None):
+    """Get random GPS location and city name (including country and country code)."""
+    acceptable_location_found = False
+    while not acceptable_location_found:
+        random_city = random.choice(cities)
+        gps_location = "{},{}".format(random_city['lat'], random_city['lng'])
+        if unacceptable_locations is None or gps_location not in unacceptable_locations:
+            address = "{} {} {}".format(
+                random_city['city_ascii'], random_city['country'], random_city['iso3'])
+            return gps_location, address
+
+
+CITIES = get_cities()
 
 
 class SimulationError(Exception):
@@ -92,11 +100,6 @@ def confirm_couriering_event(pubkey, **kwargs):
 def accept_package_event(pubkey, **kwargs):
     """Add `accept_package` event."""
     return add_event(pubkey, route='accept_package', **kwargs)
-
-
-def get_random_coordinates():
-    """Get random GPS coordinates."""
-    return "{},{}".format(str(random.randint(-90, 90)), str(random.randint(-180, 180)))
 
 
 def create_new_account(source_account_seed, user_pubkey, amount):
@@ -160,8 +163,8 @@ def launch_new_package(package_number):
     escrow_keypair = paket_stellar.stellar_base.Keypair.random()
     escrow_pubkey = escrow_keypair.address().decode()
     escrow_seed = escrow_keypair.seed().decode()
-    from_place = random.choice(PLACES['from'])
-    to_place = random.choice(PLACES['to'])
+    from_place = get_random_place(CITIES)
+    to_place = get_random_place(CITIES)
     package = {
         'escrow_pubkey': escrow_pubkey,
         'recipient_pubkey': TEST_RECIPIENT_PUBKEY,
@@ -242,8 +245,9 @@ def courier_action():
     if in_transit_package is not None:
         location_changed_events = [event for event in in_transit_package['events']
                                    if event['event_type'] == 'location changed']
+        previous_locations = [event['location'] for event in location_changed_events]
         if len(location_changed_events) < 5:
-            location = get_random_coordinates()
+            location = get_random_place(CITIES, unacceptable_locations=previous_locations)[0]
         elif len(location_changed_events) < 6:
             location = in_transit_package['to_location']
         else:
