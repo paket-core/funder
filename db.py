@@ -36,6 +36,13 @@ BUL_STARTING_BALANCE = util.conversion.euro_cents_to_bul_stroops(EUR_BUL_STARTIN
 MINIMUM_PAYMENT = int(os.environ.get('PAKET_MINIMUM_PAYMENT', 500))
 BASIC_MONTHLY_ALLOWANCE = int(os.environ.get('PAKET_BASIC_MONTHLY_ALLOWANCE', 5000))
 
+# purchase statuses
+PURCHASE_FAILED = -1
+PURCHASE_UNPAID = 0
+PURCHASE_PAID = 1
+PURCHASE_FUNDED = 2
+PURCHASE_PARTIALLY_FUNDED = 3
+
 
 class FundLimitReached(Exception):
     """Unable to fund account because fund limit was reached."""
@@ -288,8 +295,8 @@ def get_monthly_expenses(pubkey):
     with SQL_CONNECTION() as sql:
         sql.execute("""
             SELECT CAST(SUM(euro_cents) AS SIGNED) euro_cents FROM purchases
-            WHERE user_pubkey = %s AND timestamp > %s AND paid > 1""", (
-                pubkey, time.time() - (30 * 24 * 60 * 60)))
+            WHERE user_pubkey = %s AND timestamp > %s AND paid > %s""", (
+                pubkey, time.time() - (30 * 24 * 60 * 60), PURCHASE_FUNDED))
         try:
             return sql.fetchall()[0][b'euro_cents'] or 0
         except TypeError:
@@ -389,7 +396,7 @@ def get_unfunded():
 
 
 # pylint: disable=too-many-arguments
-def set_purchase(user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency, paid=0):
+def set_purchase(user_pubkey, payment_pubkey, payment_currency, euro_cents, requested_currency, paid=PURCHASE_UNPAID):
     """Add purchase info."""
     with SQL_CONNECTION() as sql:
         sql.execute('''
@@ -416,22 +423,22 @@ def get_purchases(paid_status=None):
 
 def get_failed_purchases():
     """Get all failed purchases."""
-    return get_purchases(paid_status=-1)
+    return get_purchases(paid_status=PURCHASE_FAILED)
 
 
 def get_unpaid_purchases():
     """Get all unpaid purchases."""
-    return get_purchases(paid_status=0)
+    return get_purchases(paid_status=PURCHASE_UNPAID)
 
 
 def get_paid_purchases():
     """Get all paid purchases."""
-    return get_purchases(paid_status=1)
+    return get_purchases(paid_status=PURCHASE_PAID)
 
 
 def get_completed_purchases():
     """Get all completed purchases."""
-    return get_purchases(paid_status=2)
+    return get_purchases(paid_status=PURCHASE_FUNDED) + get_purchases(paid_status=PURCHASE_PARTIALLY_FUNDED)
 
 
 def get_current_purchases():
