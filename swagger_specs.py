@@ -1,7 +1,7 @@
 """Swagger specifications of Funding Server."""
 VERSION = 2
 CONFIG = {
-    'title': 'PaKeT funding API',
+    'title': 'PAKET funding API',
     'uiversion': 2,
     'specs_route': '/',
     'specs': [{
@@ -9,10 +9,10 @@ CONFIG = {
         'route': '/apispec.json',
     }],
     'info': {
-        'title': 'The PaKeT Funding Server API',
+        'title': 'The PAKET Funding Server API',
         'version': VERSION,
         'contact': {
-            'name': 'The PaKeT Project',
+            'name': 'The PAKET Project',
             'email': 'israel@paket.global',
             'url': 'https://fund.paket.global',
         },
@@ -21,6 +21,13 @@ CONFIG = {
             'url': 'http://www.gnu.org/licenses/'
         },
         'description': '''
+Funding Server for The PAKET Project
+
+What is this?
+=============
+This page is used as both documentation of our funding server and as a sandbox to
+test interaction with it. You can use this page to call the RESTful API while
+specifying any required or optional parameter. The page also presents curl
 
 The Funding server is responsible for giving users a simple way to create
 Stellar accounts, purchase XLMs used to pay for the Stellar transactions, and

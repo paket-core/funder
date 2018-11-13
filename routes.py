@@ -12,8 +12,7 @@ import swagger_specs
 
 
 LOGGER = util.logger.logging.getLogger('pkt.funding.routes')
-
-VERSION = swagger_specs.CONFIG['info']['version']
+VERSION = swagger_specs.VERSION
 PORT = os.environ.get('PAKET_FUNDER_PORT', 8002)
 BLUEPRINT = flask.Blueprint('funding', __name__)
 
