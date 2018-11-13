@@ -169,28 +169,33 @@ def send_requested_currency():
         monthly_allowance = db.get_monthly_allowance(purchase['user_pubkey'])
         monthly_expenses = db.get_monthly_expenses(purchase['user_pubkey'])
         remaining_monthly_allowance = monthly_allowance - monthly_expenses
-        LOGGER.info("monthly allowance is %s EUR", monthly_allowance)
-        LOGGER.info("monthly expenses is %s EUR", monthly_expenses)
+        LOGGER.info("monthly allowance is %s EUR cents", monthly_allowance)
+        LOGGER.info("monthly expenses is %s EUR cents", monthly_expenses)
 
         if remaining_monthly_allowance <= 0:
             LOGGER.warning(
                 "account %s have exhausted monthly allowance and will not be funded", purchase['user_pubkey'])
             continue
         elif remaining_monthly_allowance < euro_cents_balance:
+            euro_cents_to_fund = remaining_monthly_allowance
             LOGGER.warning(
-                "account %s purchased %s EUR but remaining allowance is %s EUR",
+                "account %s purchased %s EUR cents but remaining allowance is %s EUR cents",
                 purchase['user_pubkey'], euro_cents_balance, remaining_monthly_allowance)
+            LOGGER.warning(
+                "%s EUR cents will be funded to account, %s EUR cents remaining",
+                euro_cents_to_fund, euro_cents_balance - euro_cents_to_fund)
             # TODO: mark this purchase as outreached
         else:
+            euro_cents_to_fund = euro_cents_balance
             LOGGER.info("account %s performed purchase within allowed limits", purchase['user_pubkey'])
 
         if purchase['requested_currency'] == 'BUL':
             fund_amount = db.util.conversion.euro_cents_to_bul_stroops(
-                euro_cents_balance, db.prices.bul_price())
+                euro_cents_to_fund, db.prices.bul_price())
             send_requested_bul(purchase, fund_amount)
         else:
             fund_amount = db.util.conversion.euro_cents_to_xlm_stroops(
-                euro_cents_balance, db.prices.xlm_price())
+                euro_cents_to_fund, db.prices.xlm_price())
             send_requested_xlm(purchase, fund_amount)
 
 
