@@ -80,7 +80,7 @@ def send_requested_bul(purchase, fund_amount):
             LOGGER.info("%s funded with %s BUL", purchase['user_pubkey'], fund_amount)
             db.set_purchase(
                 purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-                purchase['euro_cents'], purchase['requested_currency'], paid=2)
+                purchase['euro_cents'], purchase['requested_currency'], paid=db.PURCHASE_FUNDED)
             LOGGER.info("purchase for account %s marked as funded", purchase['user_pubkey'])
         else:
             LOGGER.error("account %s need to set higher limit for BUL."
@@ -88,13 +88,13 @@ def send_requested_bul(purchase, fund_amount):
                          account['bul_balance'], account['bul_limit'], fund_amount)
             db.set_purchase(
                 purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-                purchase['euro_cents'], purchase['requested_currency'], paid=-1)
+                purchase['euro_cents'], purchase['requested_currency'], paid=db.PURCHASE_FAILED)
             LOGGER.error("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
     except (paket_stellar.TrustError, paket_stellar.stellar_base.exceptions.AccountNotExistError) as exc:
         LOGGER.error(str(exc))
         db.set_purchase(
             purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-            purchase['euro_cents'], purchase['requested_currency'], paid=-1)
+            purchase['euro_cents'], purchase['requested_currency'], paid=db.PURCHASE_FAILED)
         LOGGER.error("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
 
 
@@ -109,7 +109,7 @@ def send_requested_xlm(purchase, fund_amount):
         create_new_account(purchase['user_pubkey'], fund_amount)
     db.set_purchase(
         purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-        purchase['euro_cents'], purchase['requested_currency'], paid=2)
+        purchase['euro_cents'], purchase['requested_currency'], paid=db.PURCHASE_FUNDED)
     LOGGER.info("purchase with address %s marked as funded", purchase['payment_pubkey'])
 
 
@@ -135,7 +135,7 @@ def check_purchases_addresses():
         if euro_cents_balance >= db.MINIMUM_PAYMENT:
             db.set_purchase(
                 purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-                purchase['euro_cents'], purchase['requested_currency'], paid=1)
+                purchase['euro_cents'], purchase['requested_currency'], paid=db.PURCHASE_PAID)
             LOGGER.info("purchase with address %s marked as paid", purchase['payment_pubkey'])
         else:
             LOGGER.info("purchase with address %s has balance less than minimum allowed for funding "
