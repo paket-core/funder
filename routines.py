@@ -71,8 +71,10 @@ def add_trust(user_pubkey, user_seed):
     paket_stellar.submit_transaction_envelope(prepared_transaction, seed=user_seed)
 
 
-def send_requested_bul(purchase, fund_amount, success_purchase_status=db.PURCHASE_FUNDED):
+def send_requested_bul(purchase, euro_cents_to_fund, success_purchase_status=db.PURCHASE_FUNDED):
     """Send amount of BUL requested in purchase."""
+    fund_amount = db.util.conversion.euro_cents_to_bul_stroops(
+        euro_cents_to_fund, db.prices.bul_price())
     try:
         account = paket_stellar.get_bul_account(purchase['user_pubkey'])
         if account['bul_balance'] + fund_amount <= account['bul_limit']:
@@ -80,7 +82,7 @@ def send_requested_bul(purchase, fund_amount, success_purchase_status=db.PURCHAS
             LOGGER.info("%s funded with %s BUL", purchase['user_pubkey'], fund_amount)
             db.set_purchase(
                 purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-                purchase['euro_cents'], purchase['requested_currency'], paid=success_purchase_status)
+                euro_cents_to_fund, purchase['requested_currency'], paid=success_purchase_status)
             LOGGER.info("purchase for account %s marked as funded", purchase['user_pubkey'])
         else:
             LOGGER.error("account %s need to set higher limit for BUL."
@@ -88,18 +90,20 @@ def send_requested_bul(purchase, fund_amount, success_purchase_status=db.PURCHAS
                          account['bul_balance'], account['bul_limit'], fund_amount)
             db.set_purchase(
                 purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-                purchase['euro_cents'], purchase['requested_currency'], paid=db.PURCHASE_FAILED)
+                euro_cents_to_fund, purchase['requested_currency'], paid=db.PURCHASE_FAILED)
             LOGGER.error("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
     except (paket_stellar.TrustError, paket_stellar.stellar_base.exceptions.AccountNotExistError) as exc:
         LOGGER.error(str(exc))
         db.set_purchase(
             purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-            purchase['euro_cents'], purchase['requested_currency'], paid=db.PURCHASE_FAILED)
+            euro_cents_to_fund, purchase['requested_currency'], paid=db.PURCHASE_FAILED)
         LOGGER.error("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
 
 
-def send_requested_xlm(purchase, fund_amount, success_purchase_status=db.PURCHASE_FUNDED):
+def send_requested_xlm(purchase, euro_cents_to_fund, success_purchase_status=db.PURCHASE_FUNDED):
     """Send amount of XLM requested in purchase."""
+    fund_amount = db.util.conversion.euro_cents_to_xlm_stroops(
+        euro_cents_to_fund, db.prices.xlm_price())
     try:
         paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
         fund_account(purchase['user_pubkey'], fund_amount, 'XLM')
@@ -109,7 +113,7 @@ def send_requested_xlm(purchase, fund_amount, success_purchase_status=db.PURCHAS
         create_new_account(purchase['user_pubkey'], fund_amount)
     db.set_purchase(
         purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-        purchase['euro_cents'], purchase['requested_currency'], paid=success_purchase_status)
+        euro_cents_to_fund, purchase['requested_currency'], paid=success_purchase_status)
     LOGGER.info("purchase with address %s marked as funded", purchase['payment_pubkey'])
 
 
@@ -135,7 +139,7 @@ def check_purchases_addresses():
         if euro_cents_balance >= db.MINIMUM_PAYMENT:
             db.set_purchase(
                 purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
-                purchase['euro_cents'], purchase['requested_currency'], paid=db.PURCHASE_PAID)
+                euro_cents_balance, purchase['requested_currency'], paid=db.PURCHASE_PAID)
             LOGGER.info("purchase with address %s marked as paid", purchase['payment_pubkey'])
         else:
             LOGGER.info("purchase with address %s has balance less than minimum allowed for funding "
@@ -191,13 +195,9 @@ def send_requested_currency():
             LOGGER.info("account %s performed purchase within allowed limits", purchase['user_pubkey'])
 
         if purchase['requested_currency'] == 'BUL':
-            fund_amount = db.util.conversion.euro_cents_to_bul_stroops(
-                euro_cents_to_fund, db.prices.bul_price())
-            send_requested_bul(purchase, fund_amount, success_purchase_status=purchase_status)
+            send_requested_bul(purchase, euro_cents_to_fund, success_purchase_status=purchase_status)
         else:
-            fund_amount = db.util.conversion.euro_cents_to_xlm_stroops(
-                euro_cents_to_fund, db.prices.xlm_price())
-            send_requested_xlm(purchase, fund_amount, success_purchase_status=purchase_status)
+            send_requested_xlm(purchase, euro_cents_to_fund, success_purchase_status=purchase_status)
 
 
 def fund_new_accounts():
