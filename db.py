@@ -1,4 +1,4 @@
-"""PaKeT database interface."""
+"""PAKET database interface."""
 import logging
 import os
 import time

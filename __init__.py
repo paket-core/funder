@@ -1,4 +1,4 @@
-"""Funding server for the PaKeT project."""
+"""Funding server for the PAKET project."""
 import sys
 import os.path
 
