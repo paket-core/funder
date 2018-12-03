@@ -48,17 +48,24 @@ class BaseRoutesTests(unittest.TestCase):
         return response
 
     def internal_test_create_user(self, keypair, call_sign, **kwargs):
-        """Create user"""
+        """Create user."""
         pubkey = keypair.address().decode()
         seed = keypair.seed()
         user = self.call(
             'create_user', 201, 'could not create user', seed,
-            user_pubkey=pubkey, call_sign=call_sign, **kwargs)['user']
+            user_pubkey=pubkey, call_sign=call_sign)['user']
         self.assertEqual(user['pubkey'], pubkey,
                          "pubkey of created user: {} does not match given: {}".format(user['pubkey'], pubkey))
         self.assertEqual(user['call_sign'], call_sign,
                          "call sign of created user: {} does not match given: {}".format(user['call_sign'], call_sign))
+        if kwargs:
+            self.internal_test_set_user_info(seed, **kwargs)
         return user
+
+    def internal_test_set_user_info(self, seed, **kwargs):
+        """Set internal user info."""
+        self.call('user_infos', 200, 'error on setting user info', seed=seed, **kwargs)
+
 
 
 class CreateUserTest(BaseRoutesTests):
@@ -214,11 +221,10 @@ class PurchaseBulTest(BaseRoutesTests):
         """Test for purchasing BUL."""
         keypair = paket_stellar.get_keypair()
         full_name = 'New Name'
-        phone_number = '+48 045 237 27 36'
+        phone_number = '+38 067 237 27 36'
         address = 'New Address'
         self.internal_test_create_user(
             keypair, 'new_user', full_name=full_name, phone_number=phone_number, address=address)
-        # need to add generated address checking
         self.call(
             'purchase_bul', 201, 'could not purchase xlm', keypair.seed(),
             user_pubkey=keypair.address(), euro_cents=500, payment_currency='ETH')
