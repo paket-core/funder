@@ -79,26 +79,6 @@ class CreateUserTest(BaseRoutesTests):
             'create_user', 400, 'created user with invalid call_sign',
             seed=keypair.seed(), call_sign=keypair.address().decode())
 
-    def test_create_with_infos(self):
-        """Test create user with provided user info."""
-        keypair = paket_stellar.get_keypair()
-        call_sign = 'test_user'
-        full_name = 'Kapitoshka Vodyanovych'
-        phone_number = '+380 67 13 666'
-        address = 'Vulychna 14, Trypillya'
-        user = self.internal_test_create_user(
-            keypair, call_sign, full_name=full_name, phone_number=phone_number, address=address)
-        user_infos = db.get_user_infos(user['pubkey'])
-        self.assertEqual(
-            user_infos['full_name'], full_name,
-            "stored full name: {} does not match given: {}".format(user_infos['full_name'], full_name))
-        self.assertEqual(
-            user_infos['phone_number'], phone_number,
-            "stored phone number: {} does not match given: {}".format(user_infos['phone_number'], phone_number))
-        self.assertEqual(
-            user_infos['address'], address,
-            "stored address: {} does not match given: {}".format(user_infos['address'], address))
-
     def test_non_unique_pubkey(self):
         """Test user creation on non uniq pubkey"""
         keypair = paket_stellar.get_keypair()
