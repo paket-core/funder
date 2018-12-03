@@ -85,8 +85,8 @@ class CreateUserTest(BaseRoutesTests):
         call_sign = 'test_user'
         self.internal_test_create_user(keypair, call_sign)
         self.call(
-            'create_user', 400, 'created user with non uniq pubkey', keypair.seed(),
-            user_pubkey=keypair.address(), call_sign='another_call_sign')
+            'create_user', 403, 'unexpected status code on creating user with non-unique pubkey',
+            keypair.seed(), user_pubkey=keypair.address(), call_sign='another_call_sign')
 
     def test_non_unique_call_sign(self):
         """Test user creation on non unique call sign"""
@@ -95,8 +95,8 @@ class CreateUserTest(BaseRoutesTests):
         self.internal_test_create_user(keypair, call_sign)
         another_keypair = paket_stellar.get_keypair()
         self.call(
-            'create_user', 400, 'created user with non uniq call sign', another_keypair.seed(),
-            user_pubkey=another_keypair.address(), call_sign=call_sign)
+            'create_user', 403, 'unexpected status code on creating user with non-unique call sign',
+            another_keypair.seed(), user_pubkey=another_keypair.address(), call_sign=call_sign)
 
 
 class GetUserTest(BaseRoutesTests):
