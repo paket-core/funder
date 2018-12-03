@@ -80,21 +80,21 @@ class DBTest(unittest.TestCase):
         monthly_allowance = db.get_monthly_allowance(pubkey)
         self.assertEqual(monthly_allowance, db.BASIC_MONTHLY_ALLOWANCE, 'test completeed user has wrong allowance')
 
-    def test_monthly_expanses(self):
+    def test_monthly_expenses(self):
         """Test monthly expanses logic"""
         pubkey, call_sign = 'pubkey', 'call_sign'
         self.internal_test_create_user(pubkey, call_sign)
-        monthly_expanses = db.get_monthly_expanses(pubkey)
-        self.assertEqual(monthly_expanses, 0, 'monthly expanses are incorrect')
+        monthly_expenses = db.get_monthly_expenses(pubkey)
+        self.assertEqual(monthly_expenses, 0, 'monthly expenses are incorrect')
         db.update_test(pubkey, 'basic', 1)
         payment_address = db.get_payment_address(pubkey, 500, 'BTC', 'BUL')
-        db.set_purchase(pubkey, payment_address, 'BTC', 500, 'BUL', 1)
-        monthly_expanses = db.get_monthly_expanses(pubkey)
-        self.assertEqual(monthly_expanses, 500, 'monthly expanses are incorrect')
+        db.set_purchase(pubkey, payment_address, 'BTC', 500, 'BUL', 2)
+        monthly_expenses = db.get_monthly_expenses(pubkey)
+        self.assertEqual(monthly_expenses, 500, 'monthly expenses are incorrect')
         payment_address = db.get_payment_address(pubkey, 600, 'ETH', 'XLM')
         db.set_purchase(pubkey, payment_address, 'ETH', 500, 'XLM', 1)
-        monthly_expanses = db.get_monthly_expanses(pubkey)
-        self.assertEqual(monthly_expanses, 1100, 'monthly expanses are incorrect')
+        monthly_expenses = db.get_monthly_expenses(pubkey)
+        self.assertEqual(monthly_expenses, 1100, 'monthly expenses are incorrect')
 
     def test_get_payment_address(self):
         """Test get payment address"""
