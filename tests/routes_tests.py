@@ -23,6 +23,12 @@ class BaseRoutesTests(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self.app = APP.test_client()
         self.host = 'http://localhost'
+
+        self.default_test_call_sign = 'test_user'
+        self.default_test_name = 'Test Name'
+        self.default_test_phone = '+380678912345'
+        self.default_test_address = 'Country, street, house number'
+
         LOGGER.info('init done')
 
     def setUp(self):
@@ -67,15 +73,13 @@ class BaseRoutesTests(unittest.TestCase):
         self.call('user_infos', 200, 'error on setting user info', seed=seed, **kwargs)
 
 
-
 class CreateUserTest(BaseRoutesTests):
     """Test for create_user endpoint."""
 
     def test_create_user(self):
         """Test create user."""
         keypair = paket_stellar.get_keypair()
-        call_sign = 'test_user'
-        self.internal_test_create_user(keypair, call_sign)
+        self.internal_test_create_user(keypair, self.default_test_call_sign)
         users = db.get_users()
         self.assertEqual(len(users), 1, "number of existing users: {} should be 1".format(len(users)))
 
@@ -89,8 +93,7 @@ class CreateUserTest(BaseRoutesTests):
     def test_non_unique_pubkey(self):
         """Test user creation on non uniq pubkey"""
         keypair = paket_stellar.get_keypair()
-        call_sign = 'test_user'
-        self.internal_test_create_user(keypair, call_sign)
+        self.internal_test_create_user(keypair, self.default_test_call_sign)
         self.call(
             'create_user', 403, 'unexpected status code on creating user with non-unique pubkey',
             keypair.seed(), user_pubkey=keypair.address(), call_sign='another_call_sign')
@@ -98,12 +101,11 @@ class CreateUserTest(BaseRoutesTests):
     def test_non_unique_call_sign(self):
         """Test user creation on non unique call sign"""
         keypair = paket_stellar.get_keypair()
-        call_sign = 'test_user'
-        self.internal_test_create_user(keypair, call_sign)
+        self.internal_test_create_user(keypair, self.default_test_call_sign)
         another_keypair = paket_stellar.get_keypair()
         self.call(
             'create_user', 403, 'unexpected status code on creating user with non-unique call sign',
-            another_keypair.seed(), user_pubkey=another_keypair.address(), call_sign=call_sign)
+            another_keypair.seed(), user_pubkey=another_keypair.address(), call_sign=self.default_test_call_sign)
 
 
 class GetUserTest(BaseRoutesTests):
@@ -112,27 +114,27 @@ class GetUserTest(BaseRoutesTests):
     def test_get_user_by_pubkey(self):
         """Test get user by pubkey."""
         keypair = paket_stellar.get_keypair()
-        call_sign = 'test_user'
-        user = self.internal_test_create_user(keypair, call_sign)
+        user = self.internal_test_create_user(keypair, self.default_test_call_sign)
         stored_user = self.call('get_user', 200, 'could not get user', pubkey=user['pubkey'])['user']
         self.assertEqual(
-            stored_user['pubkey'], user['pubkey'], "stored user: {} does not match created one: {}".format(
+            stored_user['pubkey'], user['pubkey'],
+            "stored user: {} does not match created one: {}".format(
                 stored_user['pubkey'], user['pubkey']))
 
     def test_get_user_by_call_sign(self):
         """Test get user by call sign."""
         keypair = paket_stellar.get_keypair()
-        call_sign = 'test_user'
-        user = self.internal_test_create_user(keypair, call_sign)
-        stored_user = self.call('get_user', 200, 'could not get user', call_sign=call_sign)['user']
+        user = self.internal_test_create_user(keypair, self.default_test_call_sign)
+        stored_user = self.call('get_user', 200, 'could not get user', call_sign=self.default_test_call_sign)['user']
         self.assertEqual(
-            stored_user['call_sign'], user['call_sign'], "stored user: {} does not match created one: {}".format(
+            stored_user['call_sign'], user['call_sign'],
+            "stored user: {} does not match created one: {}".format(
                 stored_user['call_sign'], user['call_sign']))
 
     def test_get_non_existent_user(self):
-        """Test get user on non existent publik key and call sign."""
+        """Test get user on non existent public key and call sign."""
         keypair = paket_stellar.get_keypair()
-        self.internal_test_create_user(keypair, 'call_sign')
+        self.internal_test_create_user(keypair, self.default_test_call_sign)
         self.call(
             'get_user', 404, 'does not get not found status code on non-existed pubkey',
             keypair.seed(), pubkey='public key')
@@ -144,37 +146,35 @@ class GetUserTest(BaseRoutesTests):
 class UserInfosTest(BaseRoutesTests):
     """Test for user_infos endpoint."""
 
-    def test_with_user_creation(self):
+    def test_user_infos(self):
         """Test for getting user infos."""
         keypair = paket_stellar.get_keypair()
-        call_sign = 'test_user'
-        full_name = 'Kapitoshka Vodyanovych'
-        phone_number = '+380 67 13 666'
-        address = 'Vulychna 14, Trypillya'
-        self.internal_test_create_user(
-            keypair, call_sign, full_name=full_name, phone_number=phone_number, address=address)
+        self.internal_test_create_user(keypair, self.default_test_call_sign)
         user_infos = self.call(
             'user_infos', 200, 'could not get user infos',
-            seed=keypair.seed(), user_pubkey=keypair.address())['user_details']
+            seed=keypair.seed(), user_pubkey=keypair.address(), full_name=self.default_test_name,
+            phone_number=self.default_test_phone, address=self.default_test_address)['user_details']
         self.assertEqual(
-            user_infos['full_name'], full_name, "stored full name: {} does not match given: {}".format(
-                user_infos['full_name'], full_name))
+            user_infos['full_name'], self.default_test_name,
+            "stored full name: {} does not match given: {}".format(
+                user_infos['full_name'], self.default_test_name))
         self.assertEqual(
-            user_infos['phone_number'], phone_number, "stored phone number: {} does not match given: {}".format(
-                user_infos['phone_number'], phone_number))
+            user_infos['phone_number'], self.default_test_phone,
+            "stored phone number: {} does not match given: {}".format(
+                user_infos['phone_number'], self.default_test_phone))
         self.assertEqual(
-            user_infos['address'], address, "stored address: {} does not match given: {}".format(
-                user_infos['address'], address))
+            user_infos['address'], self.default_test_address,
+            "stored address: {} does not match given: {}".format(
+                user_infos['address'], self.default_test_address))
 
     def test_adding_portions(self):
         """Test for adding info by portions."""
         keypair = paket_stellar.get_keypair()
-        call_sign = 'test_user'
-        self.internal_test_create_user(keypair, call_sign)
+        self.internal_test_create_user(keypair, self.default_test_call_sign)
         user_details = {
-            'full_name': 'Kapitoshka Vodyanovych',
-            'phone_number': '+380 67 13 666',
-            'address': 'Vulychna 14, Trypillya'
+            'full_name': self.default_test_name,
+            'phone_number': self.default_test_phone,
+            'address': self.default_test_address
         }
         passed_details = {}
         for key, value in user_details.items():
@@ -184,7 +184,8 @@ class UserInfosTest(BaseRoutesTests):
             passed_details[key] = value
             for detail_name, detail_value in passed_details.items():
                 self.assertIn(
-                    detail_name, stored_user_details, "user details does not contails new detail: {}={}".format(
+                    detail_name, stored_user_details,
+                    "user details does not contails new detail: {}={}".format(
                         detail_name, detail_value))
                 self.assertEqual(
                     stored_user_details[detail_name],
@@ -203,11 +204,9 @@ class PurchaseXlmTest(BaseRoutesTests):
     def test_purchase(self):
         """Test for purchasing XLM."""
         keypair = paket_stellar.get_keypair()
-        full_name = 'New Name'
-        phone_number = '+48 045 237 27 36'
-        address = 'New Address'
         self.internal_test_create_user(
-            keypair, 'new_user', full_name=full_name, phone_number=phone_number, address=address)
+            keypair, 'new_user', full_name=self.default_test_name,
+            phone_number=self.default_test_phone, address=self.default_test_address)
         # need to add generated address checking
         self.call(
             'purchase_xlm', 201, 'could not purchase xlm', keypair.seed(),
@@ -220,11 +219,9 @@ class PurchaseBulTest(BaseRoutesTests):
     def test_purchase(self):
         """Test for purchasing BUL."""
         keypair = paket_stellar.get_keypair()
-        full_name = 'New Name'
-        phone_number = '+38 067 237 27 36'
-        address = 'New Address'
         self.internal_test_create_user(
-            keypair, 'new_user', full_name=full_name, phone_number=phone_number, address=address)
+            keypair, 'new_user', full_name=self.default_test_name,
+            phone_number=self.default_test_phone, address=self.default_test_address)
         self.call(
             'purchase_bul', 201, 'could not purchase xlm', keypair.seed(),
             user_pubkey=keypair.address(), euro_cents=500, payment_currency='ETH')
