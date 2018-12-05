@@ -149,7 +149,7 @@ def check_users():
 def accept_package_by_recipient(package):
     """Accept package by recipient."""
     accept_package_event(
-        TEST_RECIPIENT_PUBKEY, escrow_pubkey=package['escrow_pubkey'], location=package['to_location'])
+        TEST_RECIPIENT_PUBKEY, package_id=package['package_id'], location=package['to_location'])
     xdr_event = next((event for event in package['events'] if event['event_type'] == 'escrow XDRs assigned'), None)
     if xdr_event is None:
         SimulationError("can't accept package without XDRs transactions")
@@ -160,14 +160,13 @@ def accept_package_by_recipient(package):
 
 def launch_new_package(package_number):
     """Launch new package."""
-    package_id = "package_{}".format(package_number)
     escrow_keypair = paket_stellar.stellar_base.Keypair.random()
     escrow_pubkey = escrow_keypair.address().decode()
     escrow_seed = escrow_keypair.seed().decode()
     from_place = get_random_place(CITIES)
     to_place = get_random_place(CITIES)
     package = {
-        'package_id': package_id,
+        'package_id': escrow_pubkey,
         'escrow_pubkey': escrow_pubkey,
         'recipient_pubkey': TEST_RECIPIENT_PUBKEY,
         'launcher_phone_number': '+40534591250',
@@ -185,7 +184,7 @@ def launch_new_package(package_number):
     event = {
         'event_type': 'escrow seed added',
         'location': from_place[0],
-        'escrow_pubkey': escrow_pubkey,
+        'package_id': escrow_pubkey,
         'kwargs': '{{"escrow_seed": "{}"}}'.format(escrow_seed)}
     add_event(TEST_LAUNCHER_PUBKEY, **event)
 
