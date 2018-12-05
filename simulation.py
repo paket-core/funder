@@ -160,12 +160,14 @@ def accept_package_by_recipient(package):
 
 def launch_new_package(package_number):
     """Launch new package."""
+    package_id = "package_{}".format(package_number)
     escrow_keypair = paket_stellar.stellar_base.Keypair.random()
     escrow_pubkey = escrow_keypair.address().decode()
     escrow_seed = escrow_keypair.seed().decode()
     from_place = get_random_place(CITIES)
     to_place = get_random_place(CITIES)
     package = {
+        'package_id': package_id,
         'escrow_pubkey': escrow_pubkey,
         'recipient_pubkey': TEST_RECIPIENT_PUBKEY,
         'launcher_phone_number': '+40534591250',
@@ -195,20 +197,21 @@ def take_package_from_launcher(package):
     accept package by courier.
     :return:
     """
+    package_id = package['package_id']
     escrow_pubkey = package['escrow_pubkey']
     confirm_couriering_event(
-        TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=package['from_location'])
+        TEST_COURIER_PUBKEY, package_id=package_id, location=package['from_location'])
     seed_event = next((event for event in package['events']
                        if event['event_type'] == 'escrow seed added'), None)
     if seed_event is None:
-        raise SimulationError("package {} is not simulation pacakge".format(escrow_pubkey))
+        raise SimulationError("package {} is not simulation package".format(package_id))
     escrow_seed = json.loads(seed_event['kwargs'])['escrow_seed']
     create_new_account(TEST_LAUNCHER_SEED, escrow_pubkey, ESCROW_BALANCE)
     add_trust(escrow_pubkey, escrow_seed)
     escrow = paket_stellar.prepare_escrow(
         escrow_pubkey, TEST_LAUNCHER_PUBKEY, TEST_COURIER_PUBKEY,
-        TEST_RECIPIENT_PUBKEY, PAYMENT, COLLATERAL, package['deadline'])
-    assign_xdrs_event(TEST_LAUNCHER_PUBKEY, escrow_pubkey=escrow_pubkey,
+        TEST_RECIPIENT_PUBKEY, PAYMENT + COLLATERAL, package['deadline'])
+    assign_xdrs_event(TEST_LAUNCHER_PUBKEY, package_id=package_id,
                       location=package['from_location'], kwargs=json.dumps(dict(escrow_xdrs=escrow)))
     paket_stellar.submit_transaction_envelope(escrow['set_options_transaction'], escrow_seed)
     send_bul_transaction = paket_stellar.prepare_send_buls(TEST_LAUNCHER_PUBKEY, escrow_pubkey, PAYMENT)
@@ -216,7 +219,7 @@ def take_package_from_launcher(package):
     send_bul_transaction = paket_stellar.prepare_send_buls(TEST_COURIER_PUBKEY, escrow_pubkey, COLLATERAL)
     paket_stellar.submit_transaction_envelope(send_bul_transaction, TEST_COURIER_SEED)
     accept_package_event(
-        TEST_COURIER_PUBKEY, escrow_pubkey=escrow_pubkey, location=package['from_location'])
+        TEST_COURIER_PUBKEY, package_id=package_id, location=package['from_location'])
 
 
 def launcher_action():
@@ -253,7 +256,7 @@ def courier_action():
         else:
             return
         changed_location_event(
-            TEST_COURIER_PUBKEY, escrow_pubkey=in_transit_package['escrow_pubkey'], location=location)
+            TEST_COURIER_PUBKEY, package_id=in_transit_package['package_id'], location=location)
 
     waiting_pickup_package = next((package for package in packages if package['status'] == 'waiting pickup'), None)
     if waiting_pickup_package is not None:
