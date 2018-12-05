@@ -92,7 +92,7 @@ def send_requested_bul(purchase, euro_cents_to_fund, success_purchase_status=db.
                 purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
                 euro_cents_to_fund, purchase['requested_currency'], paid=db.PURCHASE_FAILED)
             LOGGER.error("purchase with address %s marked as unsuccessful", purchase['payment_pubkey'])
-    except (paket_stellar.TrustError, paket_stellar.stellar_base.exceptions.AccountNotExistError) as exc:
+    except (paket_stellar.TrustError, paket_stellar.StellarAccountNotExists) as exc:
         LOGGER.error(str(exc))
         db.set_purchase(
             purchase['user_pubkey'], purchase['payment_pubkey'], purchase['payment_currency'],
@@ -108,7 +108,7 @@ def send_requested_xlm(purchase, euro_cents_to_fund, success_purchase_status=db.
         paket_stellar.get_bul_account(purchase['user_pubkey'], accept_untrusted=True)
         fund_account(purchase['user_pubkey'], fund_amount, 'XLM')
         LOGGER.info("%s funded with %s XLM", purchase['user_pubkey'], fund_amount)
-    except paket_stellar.stellar_base.address.AccountNotExistError:
+    except paket_stellar.StellarAccountNotExists:
         LOGGER.info("account %s does not exist and will be created", purchase['user_pubkey'])
         create_new_account(purchase['user_pubkey'], fund_amount)
     db.set_purchase(

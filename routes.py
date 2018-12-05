@@ -45,7 +45,7 @@ webserver.validation.CUSTOM_EXCEPTION_STATUSES[db.UserAlreadyExists] = 403
 # Internal error codes.
 webserver.validation.INTERNAL_ERROR_CODES[db.paket_stellar.NotOnTestnet] = 120
 webserver.validation.INTERNAL_ERROR_CODES[db.paket_stellar.StellarTransactionFailed] = 200
-webserver.validation.INTERNAL_ERROR_CODES[db.paket_stellar.stellar_base.address.AccountNotExistError] = 201
+webserver.validation.INTERNAL_ERROR_CODES[db.paket_stellar.StellarAccountNotExists] = 201
 webserver.validation.INTERNAL_ERROR_CODES[db.paket_stellar.TrustError] = 202
 webserver.validation.INTERNAL_ERROR_CODES[db.UnknownUser] = 300
 webserver.validation.INTERNAL_ERROR_CODES[db.UserAlreadyExists] = 301

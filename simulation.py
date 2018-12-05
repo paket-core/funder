@@ -129,7 +129,7 @@ def check_users():
         user_seed = user_keypair.seed().decode()
         try:
             paket_stellar.get_bul_account(user_pubkey)
-        except paket_stellar.stellar_base.address.AccountNotExistError:
+        except paket_stellar.StellarAccountNotExists:
             LOGGER.info("creating account %s", user_pubkey)
             create_new_account(db.FUNDER_SEED, user_pubkey, XLM_START_BALANCE)
             LOGGER.info("adding trust to %s", user_pubkey)
